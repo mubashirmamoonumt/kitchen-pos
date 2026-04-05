@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useLogin } from "@workspace/api-client-react";
+import { useLogin, type AuthResponse } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { Ionicons } from "@expo/vector-icons";
@@ -34,7 +34,7 @@ export default function LoginScreen() {
     loginMutation.mutate(
       { data: { email, password } },
       {
-        onSuccess: async (data: any) => {
+        onSuccess: async (data: AuthResponse) => {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           await login(data.token);
         },
