@@ -6,7 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Redirect, Stack } from "expo-router";
+import { Slot, Stack, useSegments, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -15,7 +15,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { LoadingScreen } from "@/components/LoadingScreen";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,17 +24,32 @@ const queryClient = new QueryClient({
   },
 });
 
-function RootLayoutNav() {
+function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
 
-  if (isLoading) return <LoadingScreen />;
-  if (!token) return <Redirect href="/login" />;
+  useEffect(() => {
+    if (isLoading) return;
+    const inTabsGroup = segments[0] === "(tabs)";
+    if (!token && inTabsGroup) {
+      router.replace("/login");
+    } else if (token && segments[0] === "login") {
+      router.replace("/(tabs)");
+    }
+  }, [token, isLoading, segments, router]);
 
+  return <>{children}</>;
+}
+
+function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ headerShown: false }} />
-    </Stack>
+    <AuthGuard>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+      </Stack>
+    </AuthGuard>
   );
 }
 
