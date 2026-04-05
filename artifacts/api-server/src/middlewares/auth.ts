@@ -1,7 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-export const JWT_SECRET = process.env.JWT_SECRET || "mufaz-kitchen-secret-key-change-in-prod";
+if (!process.env.JWT_SECRET) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("JWT_SECRET environment variable is required in production");
+  }
+  console.warn("WARNING: JWT_SECRET not set. Using insecure default — set JWT_SECRET before deploying.");
+}
+
+export const JWT_SECRET = process.env.JWT_SECRET ?? "mufaz-kitchen-dev-only-secret";
 
 export interface AuthUser {
   id: number;

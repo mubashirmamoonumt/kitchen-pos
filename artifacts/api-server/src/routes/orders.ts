@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, lte, desc, ne, count, sum, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, ne, count, sql } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, customersTable, ingredientsTable } from "@workspace/db";
 import {
   ListOrdersQueryParams,
@@ -11,6 +11,15 @@ import {
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
+
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  pending: ["confirmed", "cancelled"],
+  confirmed: ["preparing", "cancelled"],
+  preparing: ["ready", "cancelled"],
+  ready: ["delivered", "cancelled"],
+  delivered: [],
+  cancelled: [],
+};
 
 router.get("/orders/dashboard-summary", requireAuth, async (_req, res): Promise<void> => {
   const today = new Date();
@@ -139,34 +148,38 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
     .reduce((sum, item) => sum + parseFloat(item.itemPrice) * item.quantity, 0)
     .toFixed(2);
 
-  const [order] = await db
-    .insert(ordersTable)
-    .values({
-      customerId: customerId ?? null,
-      customerName: resolvedName ?? null,
-      customerPhone: resolvedPhone ?? null,
-      status: "pending",
-      notes: notes ?? null,
-      totalAmount,
-      paymentMethod: paymentMethod ?? null,
-    })
-    .returning();
+  const result = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .insert(ordersTable)
+      .values({
+        customerId: customerId ?? null,
+        customerName: resolvedName ?? null,
+        customerPhone: resolvedPhone ?? null,
+        status: "pending",
+        notes: notes ?? null,
+        totalAmount,
+        paymentMethod: paymentMethod ?? null,
+      })
+      .returning();
 
-  const orderItems = await db
-    .insert(orderItemsTable)
-    .values(
-      items.map((item) => ({
-        orderId: order.id,
-        menuItemId: item.menuItemId,
-        itemName: item.itemName,
-        itemPrice: item.itemPrice,
-        quantity: item.quantity,
-        subtotal: (parseFloat(item.itemPrice) * item.quantity).toFixed(2),
-      }))
-    )
-    .returning();
+    const orderItems = await tx
+      .insert(orderItemsTable)
+      .values(
+        items.map((item) => ({
+          orderId: order.id,
+          menuItemId: item.menuItemId,
+          itemName: item.itemName,
+          itemPrice: item.itemPrice,
+          quantity: item.quantity,
+          subtotal: (parseFloat(item.itemPrice) * item.quantity).toFixed(2),
+        }))
+      )
+      .returning();
 
-  res.status(201).json({ ...order, items: orderItems });
+    return { ...order, items: orderItems };
+  });
+
+  res.status(201).json(result);
 });
 
 router.get("/orders/:id", requireAuth, async (req, res): Promise<void> => {
@@ -206,6 +219,24 @@ router.patch("/orders/:id/status", requireAuth, async (req, res): Promise<void> 
     return;
   }
 
+  const [existing] = await db
+    .select()
+    .from(ordersTable)
+    .where(and(eq(ordersTable.id, params.data.id), eq(ordersTable.isDeleted, false)));
+
+  if (!existing) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+
+  const allowedNext = STATUS_TRANSITIONS[existing.status] ?? [];
+  if (!allowedNext.includes(parsed.data.status)) {
+    res.status(422).json({
+      error: `Cannot transition from '${existing.status}' to '${parsed.data.status}'. Allowed transitions: ${allowedNext.join(", ") || "none"}`,
+    });
+    return;
+  }
+
   const updateData: Record<string, unknown> = { status: parsed.data.status };
   if (parsed.data.paymentMethod) {
     updateData.paymentMethod = parsed.data.paymentMethod;
@@ -217,27 +248,14 @@ router.patch("/orders/:id/status", requireAuth, async (req, res): Promise<void> 
     .where(eq(ordersTable.id, params.data.id))
     .returning();
 
-  if (!order) {
-    res.status(404).json({ error: "Order not found" });
-    return;
-  }
-
   if (parsed.data.status === "delivered" && order.customerId) {
-    const [customer] = await db
-      .select()
-      .from(customersTable)
-      .where(eq(customersTable.id, order.customerId));
-    if (customer) {
-      await db
-        .update(customersTable)
-        .set({
-          totalOrders: customer.totalOrders + 1,
-          totalSpent: (
-            parseFloat(customer.totalSpent) + parseFloat(order.totalAmount)
-          ).toFixed(2),
-        })
-        .where(eq(customersTable.id, customer.id));
-    }
+    await db
+      .update(customersTable)
+      .set({
+        totalOrders: sql`${customersTable.totalOrders} + 1`,
+        totalSpent: sql`${customersTable.totalSpent} + ${order.totalAmount}::numeric`,
+      })
+      .where(and(eq(customersTable.id, order.customerId), eq(customersTable.isDeleted, false)));
   }
 
   res.json(order);

@@ -86,7 +86,7 @@ router.post("/scheduled-orders", requireAuth, async (req, res): Promise<void> =>
     .insert(scheduledOrdersTable)
     .values({
       ...parsed.data,
-      items: parsed.data.items as unknown as null,
+      items: parsed.data.items ?? null,
     })
     .returning();
   res.status(201).json(order);
@@ -122,7 +122,7 @@ router.patch("/scheduled-orders/:id", requireAuth, async (req, res): Promise<voi
   }
   const updateData: Record<string, unknown> = { ...parsed.data };
   if (parsed.data.items !== undefined) {
-    updateData.items = parsed.data.items as unknown as null;
+    updateData.items = parsed.data.items ?? null;
   }
   const [order] = await db
     .update(scheduledOrdersTable)
