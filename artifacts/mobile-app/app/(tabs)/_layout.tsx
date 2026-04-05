@@ -45,7 +45,7 @@ function NativeTabLayout() {
         <Label>Bills</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="schedule">
-        <Icon sf={{ default: "calendar", selected: "calendar.fill" }} />
+        <Icon sf={{ default: "calendar", selected: "calendar.circle.fill" }} />
         <Label>Schedule</Label>
       </NativeTabs.Trigger>
       {isOwner && (
@@ -196,7 +196,7 @@ function ClassicTabLayout() {
           title: "Schedule",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="calendar" tintColor={color} size={24} />
+              <SymbolView name="calendar.circle" tintColor={color} size={24} />
             ) : (
               <Ionicons name="calendar-outline" size={22} color={color} />
             ),

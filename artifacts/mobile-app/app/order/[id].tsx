@@ -212,7 +212,7 @@ export default function OrderDetailScreen() {
                       onPress={() => setPaymentMethod(m)}
                     >
                       <Text style={[styles.optChipText, { color: paymentMethod === m ? colors.primary : colors.mutedForeground }]}>
-                        {m === "jazzcash" ? "JazzCash" : m === "easypaisa" ? "EasyPaisa" : "Cash"}
+                        {m === "jazzcash" ? t.payment.jazzcash : m === "easypaisa" ? t.payment.easypaisa : t.payment.cash}
                       </Text>
                     </TouchableOpacity>
                   ))}

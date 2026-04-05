@@ -1,16 +1,17 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   ActivityIndicator,
   DimensionValue,
-  FlatList,
   Platform,
   RefreshControl,
+  SectionList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useListScheduledOrders, useGetDailyCapacity, useConvertScheduledOrder, getListScheduledOrdersQueryKey, getListOrdersQueryKey } from "@workspace/api-client-react";
+import type { ScheduledOrder } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useI18n } from "@/context/I18nContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +19,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
+
+interface Section {
+  date: string;
+  data: ScheduledOrder[];
+}
 
 export default function ScheduleScreen() {
   const colors = useColors();
@@ -29,6 +35,19 @@ export default function ScheduleScreen() {
   const scheduled = useListScheduledOrders();
   const capacity = useGetDailyCapacity({ date: today });
   const convertOrder = useConvertScheduledOrder();
+
+  const sections: Section[] = useMemo(() => {
+    if (!scheduled.data) return [];
+    const map: Record<string, ScheduledOrder[]> = {};
+    for (const item of scheduled.data) {
+      const date = item.scheduledDate;
+      if (!map[date]) map[date] = [];
+      (map[date] as ScheduledOrder[]).push(item);
+    }
+    return Object.keys(map)
+      .sort()
+      .map((date) => ({ date, data: map[date] as ScheduledOrder[] }));
+  }, [scheduled.data]);
 
   const handleConvert = (id: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -44,14 +63,14 @@ export default function ScheduleScreen() {
     );
   };
 
-  const renderItem = ({ item }: { item: NonNullable<typeof scheduled.data>[number] }) => (
+  const renderItem = ({ item }: { item: ScheduledOrder }) => (
     <View
       style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
       testID={`card-scheduled-${item.id}`}
     >
       <View style={[{ flex: 1, alignItems: isRtl ? "flex-end" : "flex-start" }]}>
-        <Text style={[styles.cardDate, { color: colors.primary }]}>
-          {item.scheduledDate} {item.scheduledTime}
+        <Text style={[styles.cardTime, { color: colors.primary }]}>
+          {item.scheduledTime}
         </Text>
         <Text style={[styles.cardName, { color: colors.foreground }]}>
           {item.customerName || t.order.walkin}
@@ -70,20 +89,40 @@ export default function ScheduleScreen() {
           <Text style={[styles.statusText, {
             color: item.status === "pending" ? colors.warning : item.status === "converted" ? colors.success : colors.mutedForeground,
           }]}>
-            {item.status}
+            {item.status === "pending" ? t.status.pending : item.status === "converted" ? t.status.completed : item.status}
           </Text>
         </View>
-        {item.status === "pending" && !item.convertedOrderId && (
-          <TouchableOpacity
-            style={[styles.convertBtn, { backgroundColor: colors.primary }]}
-            onPress={() => handleConvert(item.id)}
-          >
-            <Text style={[styles.convertBtnText, { color: colors.primaryForeground }]}>
-              {t.schedule.convertToOrder}
-            </Text>
-          </TouchableOpacity>
-        )}
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          {item.status === "pending" && (
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: colors.muted }]}
+              onPress={() => router.push(`/schedule/edit/${item.id}`)}
+              testID={`button-edit-scheduled-${item.id}`}
+            >
+              <Ionicons name="pencil-outline" size={14} color={colors.foreground} />
+            </TouchableOpacity>
+          )}
+          {item.status === "pending" && !item.convertedOrderId && (
+            <TouchableOpacity
+              style={[styles.convertBtn, { backgroundColor: colors.primary }]}
+              onPress={() => handleConvert(item.id)}
+              testID={`button-convert-scheduled-${item.id}`}
+            >
+              <Text style={[styles.convertBtnText, { color: colors.primaryForeground }]}>
+                {t.schedule.convertToOrder}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
+    </View>
+  );
+
+  const renderSectionHeader = ({ section }: { section: Section }) => (
+    <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
+      <Text style={[styles.sectionHeaderText, { color: colors.mutedForeground }]}>
+        {section.date === today ? `${t.today} (${section.date})` : section.date}
+      </Text>
     </View>
   );
 
@@ -144,22 +183,23 @@ export default function ScheduleScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} size="large" />
         </View>
+      ) : sections.length === 0 ? (
+        <View style={styles.center}>
+          <Ionicons name="calendar-outline" size={48} color={colors.mutedForeground} />
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.noData}</Text>
+        </View>
       ) : (
-        <FlatList
-          data={scheduled.data}
-          keyExtractor={(s) => String(s.id)}
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
           contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === "web" ? 50 : 16 }]}
           refreshControl={
             <RefreshControl refreshing={!!scheduled.isFetching} onRefresh={() => scheduled.refetch()} tintColor={colors.primary} />
           }
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="calendar-outline" size={48} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.noData}</Text>
-            </View>
-          }
+          stickySectionHeadersEnabled
         />
       )}
     </View>
@@ -182,7 +222,9 @@ const styles = StyleSheet.create({
   capacitySub: { fontSize: 11 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
   emptyText: { fontSize: 15 },
-  list: { paddingHorizontal: 16, paddingTop: 12, gap: 8 },
+  sectionHeader: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
+  sectionHeaderText: { fontSize: 12, fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
+  list: { paddingHorizontal: 16, paddingTop: 4, gap: 8 },
   card: {
     borderRadius: 14,
     borderWidth: 1,
@@ -190,13 +232,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
+    marginBottom: 8,
   },
-  cardDate: { fontSize: 13, fontWeight: "600", marginBottom: 4 },
+  cardTime: { fontSize: 13, fontWeight: "600", marginBottom: 4 },
   cardName: { fontSize: 15, fontWeight: "600" },
   cardNotes: { fontSize: 13, marginTop: 2 },
   cardItems: { fontSize: 12, marginTop: 4 },
   statusBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
   statusText: { fontSize: 11, fontWeight: "600" },
+  actionBtn: { borderRadius: 8, padding: 8 },
   convertBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   convertBtnText: { fontSize: 12, fontWeight: "600" },
 });

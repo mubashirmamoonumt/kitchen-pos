@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  DimensionValue,
   Platform,
   ScrollView,
   StyleSheet,
@@ -52,6 +53,18 @@ export default function ReportsScreen() {
       </View>
     );
   }
+
+  const maxRevenue = revenueByPayment.data
+    ? Math.max(...revenueByPayment.data.map((d) => Number(d.revenue)), 1)
+    : 1;
+
+  const getPaymentLabel = (method: string) => {
+    if (method === "jazzcash") return t.payment.jazzcash;
+    if (method === "easypaisa") return t.payment.easypaisa;
+    return t.payment.cash;
+  };
+
+  const barColors = ["#E8621A", "#3B82F6", "#10B981"];
 
   return (
     <ScrollView
@@ -154,31 +167,35 @@ export default function ReportsScreen() {
           {revenueByPayment.data?.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.noData}</Text>
           ) : (
-            revenueByPayment.data?.map((item, idx) => (
-              <View
-                key={item.paymentMethod}
-                style={[
-                  styles.reportRow,
-                  {
-                    borderBottomColor: colors.border,
-                    borderBottomWidth: idx < (revenueByPayment.data?.length ?? 0) - 1 ? 1 : 0,
-                    flexDirection: isRtl ? "row-reverse" : "row",
-                  },
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.reportItemName, { color: colors.foreground, textAlign: isRtl ? "right" : "left" }]}>
-                    {item.paymentMethod === "cash" ? t.payment.cash : item.paymentMethod === "jazzcash" ? t.payment.jazzcash : t.payment.easypaisa}
-                  </Text>
-                  <Text style={[styles.reportItemSub, { color: colors.mutedForeground }]}>
-                    {item.orderCount} {t.reports.orders}
-                  </Text>
-                </View>
-                <Text style={[styles.reportItemRevenue, { color: colors.success }]}>
-                  PKR {Number(item.revenue).toLocaleString()}
-                </Text>
-              </View>
-            ))
+            <View style={styles.chartContainer}>
+              {revenueByPayment.data?.map((item, idx) => {
+                const barPct = Math.max((Number(item.revenue) / maxRevenue) * 100, 4);
+                const barColor = barColors[idx % barColors.length];
+                return (
+                  <View key={item.paymentMethod} style={styles.chartRow}>
+                    <Text style={[styles.chartLabel, { color: colors.foreground, textAlign: isRtl ? "right" : "left" }]}>
+                      {getPaymentLabel(item.paymentMethod)}
+                    </Text>
+                    <View style={styles.chartBarWrap}>
+                      <View style={[styles.chartBarTrack, { backgroundColor: colors.muted }]}>
+                        <View
+                          style={[
+                            styles.chartBarFill,
+                            { width: `${barPct}%` as DimensionValue, backgroundColor: barColor },
+                          ]}
+                        />
+                      </View>
+                      <Text style={[styles.chartValue, { color: colors.foreground }]}>
+                        PKR {Number(item.revenue).toLocaleString()}
+                      </Text>
+                    </View>
+                    <Text style={[styles.chartSub, { color: colors.mutedForeground }]}>
+                      {item.orderCount} {t.reports.orders}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           )}
         </View>
       )}
@@ -207,4 +224,12 @@ const styles = StyleSheet.create({
   reportItemSub: { fontSize: 12 },
   reportItemRevenue: { fontSize: 14, fontWeight: "700" },
   emptyText: { fontSize: 14, textAlign: "center", padding: 24 },
+  chartContainer: { padding: 16, gap: 16 },
+  chartRow: { gap: 6 },
+  chartLabel: { fontSize: 13, fontWeight: "600" },
+  chartBarWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
+  chartBarTrack: { flex: 1, height: 10, borderRadius: 5, overflow: "hidden" },
+  chartBarFill: { height: "100%", borderRadius: 5 },
+  chartValue: { fontSize: 12, fontWeight: "700", minWidth: 90, textAlign: "right" },
+  chartSub: { fontSize: 11 },
 });
