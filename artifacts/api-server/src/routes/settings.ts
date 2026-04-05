@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db, appSettingsTable, usersTable } from "@workspace/db";
 import {
@@ -14,7 +14,10 @@ import { requireAuth, requireOwner } from "../middlewares/auth";
 const router: IRouter = Router();
 
 router.get("/settings", requireAuth, requireOwner, async (_req, res): Promise<void> => {
-  const settings = await db.select().from(appSettingsTable);
+  const settings = await db
+    .select()
+    .from(appSettingsTable)
+    .where(eq(appSettingsTable.isDeleted, false));
   const map: Record<string, string> = {};
   for (const s of settings) {
     map[s.key] = s.value;
@@ -33,7 +36,7 @@ router.patch("/settings", requireAuth, requireOwner, async (req, res): Promise<v
     const [existing] = await db
       .select()
       .from(appSettingsTable)
-      .where(eq(appSettingsTable.key, key));
+      .where(and(eq(appSettingsTable.key, key), eq(appSettingsTable.isDeleted, false)));
 
     if (existing) {
       await db
@@ -45,7 +48,10 @@ router.patch("/settings", requireAuth, requireOwner, async (req, res): Promise<v
     }
   }
 
-  const settings = await db.select().from(appSettingsTable);
+  const settings = await db
+    .select()
+    .from(appSettingsTable)
+    .where(eq(appSettingsTable.isDeleted, false));
   const map: Record<string, string> = {};
   for (const s of settings) {
     map[s.key] = s.value;

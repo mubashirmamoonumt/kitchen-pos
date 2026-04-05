@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, boolean, timestamp, numeric } from "drizzle-orm/pg-core";
 import { ingredientsTable } from "./ingredients";
 
 export const inventoryLogsTable = pgTable("inventory_logs", {
@@ -12,6 +12,7 @@ export const inventoryLogsTable = pgTable("inventory_logs", {
   change: numeric("change", { precision: 12, scale: 3 }).notNull(),
   reason: text("reason"),
   billId: integer("bill_id"),
+  isDeleted: boolean("is_deleted").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

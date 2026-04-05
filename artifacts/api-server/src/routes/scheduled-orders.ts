@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count, ne, gte, lt } from "drizzle-orm";
 import { db, scheduledOrdersTable, ordersTable, orderItemsTable, appSettingsTable } from "@workspace/db";
 import {
   ListScheduledOrdersQueryParams,
@@ -15,6 +15,32 @@ import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
+async function getDailyCapacity(): Promise<number> {
+  const [setting] = await db
+    .select()
+    .from(appSettingsTable)
+    .where(and(eq(appSettingsTable.key, "daily_order_capacity"), eq(appSettingsTable.isDeleted, false)));
+  return setting ? parseInt(setting.value, 10) : 50;
+}
+
+async function countOrdersForDate(dateStr: string): Promise<number> {
+  const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
+  const dayEnd = new Date(`${dateStr}T23:59:59.999Z`);
+
+  const [row] = await db
+    .select({ cnt: count(ordersTable.id) })
+    .from(ordersTable)
+    .where(
+      and(
+        eq(ordersTable.isDeleted, false),
+        ne(ordersTable.status, "cancelled"),
+        gte(ordersTable.createdAt, dayStart),
+        lt(ordersTable.createdAt, new Date(dayEnd.getTime() + 1))
+      )
+    );
+  return Number(row?.cnt ?? 0);
+}
+
 router.get("/scheduled-orders/daily-capacity", requireAuth, async (req, res): Promise<void> => {
   const query = GetDailyCapacityQueryParams.safeParse(req.query);
   if (!query.success) {
@@ -22,33 +48,15 @@ router.get("/scheduled-orders/daily-capacity", requireAuth, async (req, res): Pr
     return;
   }
 
-  const [setting] = await db
-    .select()
-    .from(appSettingsTable)
-    .where(eq(appSettingsTable.key, "daily_order_capacity"));
-
-  const capacity = setting ? parseInt(setting.value, 10) : 50;
-
-  const orders = await db
-    .select()
-    .from(ordersTable)
-    .where(
-      and(
-        eq(ordersTable.isDeleted, false),
-      )
-    );
-
+  const capacity = await getDailyCapacity();
   const dateStr = query.data.date;
-  const dayOrders = orders.filter((o) => {
-    const d = o.createdAt.toISOString().split("T")[0];
-    return d === dateStr && o.status !== "cancelled";
-  });
+  const currentCount = await countOrdersForDate(dateStr);
 
   res.json({
     date: dateStr,
-    currentCount: dayOrders.length,
+    currentCount,
     capacity,
-    available: Math.max(0, capacity - dayOrders.length),
+    available: Math.max(0, capacity - currentCount),
   });
 });
 
@@ -82,6 +90,16 @@ router.post("/scheduled-orders", requireAuth, async (req, res): Promise<void> =>
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  const capacity = await getDailyCapacity();
+  const currentCount = await countOrdersForDate(parsed.data.scheduledDate);
+  if (currentCount >= capacity) {
+    res.status(422).json({
+      error: `Daily capacity of ${capacity} orders reached for ${parsed.data.scheduledDate}`,
+    });
+    return;
+  }
+
   const [order] = await db
     .insert(scheduledOrdersTable)
     .values({
@@ -101,8 +119,8 @@ router.get("/scheduled-orders/:id", requireAuth, async (req, res): Promise<void>
   const [order] = await db
     .select()
     .from(scheduledOrdersTable)
-    .where(eq(scheduledOrdersTable.id, params.data.id));
-  if (!order || order.isDeleted) {
+    .where(and(eq(scheduledOrdersTable.id, params.data.id), eq(scheduledOrdersTable.isDeleted, false)));
+  if (!order) {
     res.status(404).json({ error: "Scheduled order not found" });
     return;
   }
@@ -127,7 +145,7 @@ router.patch("/scheduled-orders/:id", requireAuth, async (req, res): Promise<voi
   const [order] = await db
     .update(scheduledOrdersTable)
     .set(updateData)
-    .where(eq(scheduledOrdersTable.id, params.data.id))
+    .where(and(eq(scheduledOrdersTable.id, params.data.id), eq(scheduledOrdersTable.isDeleted, false)))
     .returning();
   if (!order) {
     res.status(404).json({ error: "Scheduled order not found" });
@@ -145,7 +163,7 @@ router.delete("/scheduled-orders/:id", requireAuth, async (req, res): Promise<vo
   const [order] = await db
     .update(scheduledOrdersTable)
     .set({ isDeleted: true, status: "cancelled" })
-    .where(eq(scheduledOrdersTable.id, params.data.id))
+    .where(and(eq(scheduledOrdersTable.id, params.data.id), eq(scheduledOrdersTable.isDeleted, false)))
     .returning();
   if (!order) {
     res.status(404).json({ error: "Scheduled order not found" });
@@ -164,9 +182,9 @@ router.post("/scheduled-orders/:id/convert", requireAuth, async (req, res): Prom
   const [scheduled] = await db
     .select()
     .from(scheduledOrdersTable)
-    .where(eq(scheduledOrdersTable.id, params.data.id));
+    .where(and(eq(scheduledOrdersTable.id, params.data.id), eq(scheduledOrdersTable.isDeleted, false)));
 
-  if (!scheduled || scheduled.isDeleted) {
+  if (!scheduled) {
     res.status(404).json({ error: "Scheduled order not found" });
     return;
   }
@@ -176,6 +194,16 @@ router.post("/scheduled-orders/:id/convert", requireAuth, async (req, res): Prom
   }
   if (scheduled.status === "cancelled") {
     res.status(400).json({ error: "Cannot convert a cancelled scheduled order" });
+    return;
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const capacity = await getDailyCapacity();
+  const currentCount = await countOrdersForDate(today);
+  if (currentCount >= capacity) {
+    res.status(422).json({
+      error: `Daily capacity of ${capacity} orders reached for today (${today})`,
+    });
     return;
   }
 
@@ -190,42 +218,45 @@ router.post("/scheduled-orders/:id/convert", requireAuth, async (req, res): Prom
     .reduce((s, i) => s + parseFloat(i.unitPrice) * i.quantity, 0)
     .toFixed(2);
 
-  const [order] = await db
-    .insert(ordersTable)
-    .values({
-      customerId: scheduled.customerId ?? null,
-      customerName: scheduled.customerName ?? null,
-      customerPhone: scheduled.customerPhone ?? null,
-      status: "pending",
-      notes: scheduled.notes ?? null,
-      totalAmount,
-    })
-    .returning();
+  const result = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .insert(ordersTable)
+      .values({
+        customerId: scheduled.customerId ?? null,
+        customerName: scheduled.customerName ?? null,
+        customerPhone: scheduled.customerPhone ?? null,
+        status: "pending",
+        notes: scheduled.notes ?? null,
+        totalAmount,
+      })
+      .returning();
 
-  if (items.length > 0) {
-    await db.insert(orderItemsTable).values(
-      items.map((item) => ({
-        orderId: order.id,
-        menuItemId: item.menuItemId,
-        itemName: item.itemName,
-        itemPrice: item.unitPrice,
-        quantity: item.quantity,
-        subtotal: (parseFloat(item.unitPrice) * item.quantity).toFixed(2),
-      }))
-    );
-  }
+    const orderItems =
+      items.length > 0
+        ? await tx
+            .insert(orderItemsTable)
+            .values(
+              items.map((item) => ({
+                orderId: order.id,
+                menuItemId: item.menuItemId,
+                itemName: item.itemName,
+                itemPrice: item.unitPrice,
+                quantity: item.quantity,
+                subtotal: (parseFloat(item.unitPrice) * item.quantity).toFixed(2),
+              }))
+            )
+            .returning()
+        : [];
 
-  await db
-    .update(scheduledOrdersTable)
-    .set({ status: "converted", convertedOrderId: order.id })
-    .where(eq(scheduledOrdersTable.id, scheduled.id));
+    await tx
+      .update(scheduledOrdersTable)
+      .set({ status: "converted", convertedOrderId: order.id })
+      .where(eq(scheduledOrdersTable.id, scheduled.id));
 
-  const orderItems = await db
-    .select()
-    .from(orderItemsTable)
-    .where(eq(orderItemsTable.orderId, order.id));
+    return { ...order, items: orderItems };
+  });
 
-  res.status(201).json({ ...order, items: orderItems });
+  res.status(201).json(result);
 });
 
 export default router;

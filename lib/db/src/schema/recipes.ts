@@ -27,6 +27,7 @@ export const recipeIngredientsTable = pgTable("recipe_ingredients", {
     .notNull()
     .references(() => ingredientsTable.id),
   quantity: numeric("quantity", { precision: 12, scale: 3 }).notNull(),
+  isDeleted: boolean("is_deleted").notNull().default(false),
 });
 
 export const insertRecipeSchema = createInsertSchema(recipesTable).omit({
@@ -35,7 +36,10 @@ export const insertRecipeSchema = createInsertSchema(recipesTable).omit({
   updatedAt: true,
   isDeleted: true,
 });
-export const insertRecipeIngredientSchema = createInsertSchema(recipeIngredientsTable).omit({ id: true });
+export const insertRecipeIngredientSchema = createInsertSchema(recipeIngredientsTable).omit({
+  id: true,
+  isDeleted: true,
+});
 export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
 export type Recipe = typeof recipesTable.$inferSelect;
 export type RecipeIngredient = typeof recipeIngredientsTable.$inferSelect;

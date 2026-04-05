@@ -248,16 +248,6 @@ router.patch("/orders/:id/status", requireAuth, async (req, res): Promise<void> 
     .where(eq(ordersTable.id, params.data.id))
     .returning();
 
-  if (parsed.data.status === "delivered" && order.customerId) {
-    await db
-      .update(customersTable)
-      .set({
-        totalOrders: sql`${customersTable.totalOrders} + 1`,
-        totalSpent: sql`${customersTable.totalSpent} + ${order.totalAmount}::numeric`,
-      })
-      .where(and(eq(customersTable.id, order.customerId), eq(customersTable.isDeleted, false)));
-  }
-
   res.json(order);
 });
 

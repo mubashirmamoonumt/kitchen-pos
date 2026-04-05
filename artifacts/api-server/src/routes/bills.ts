@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import {
   db,
   billsTable,
@@ -23,7 +23,7 @@ router.get("/bills", requireAuth, requireOwner, async (req, res): Promise<void> 
     return;
   }
 
-  const conditions = [];
+  const conditions = [eq(billsTable.isDeleted, false)];
   if (query.data.dateFrom) {
     conditions.push(gte(billsTable.createdAt, new Date(query.data.dateFrom)));
   }
@@ -36,7 +36,7 @@ router.get("/bills", requireAuth, requireOwner, async (req, res): Promise<void> 
   const bills = await db
     .select()
     .from(billsTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(desc(billsTable.createdAt));
 
   res.json(bills);
@@ -54,9 +54,9 @@ router.post("/bills", requireAuth, requireOwner, async (req, res): Promise<void>
   try {
     const result = await db.transaction(async (tx) => {
       const [existingBill] = await tx
-        .select()
+        .select({ id: billsTable.id })
         .from(billsTable)
-        .where(eq(billsTable.orderId, orderId));
+        .where(and(eq(billsTable.orderId, orderId), eq(billsTable.isDeleted, false)));
 
       if (existingBill) {
         throw Object.assign(new Error("Bill already exists for this order"), { status: 400 });
@@ -81,7 +81,7 @@ router.post("/bills", requireAuth, requireOwner, async (req, res): Promise<void>
       const orderItems = await tx
         .select()
         .from(orderItemsTable)
-        .where(eq(orderItemsTable.orderId, orderId));
+        .where(and(eq(orderItemsTable.orderId, orderId), eq(orderItemsTable.isDeleted, false)));
 
       const inventoryEntries: Array<{
         ingredientId: number;
@@ -99,26 +99,30 @@ router.post("/bills", requireAuth, requireOwner, async (req, res): Promise<void>
         const [recipe] = await tx
           .select()
           .from(recipesTable)
-          .where(eq(recipesTable.menuItemId, item.menuItemId));
+          .where(and(eq(recipesTable.menuItemId, item.menuItemId), eq(recipesTable.isDeleted, false)));
 
         if (!recipe) continue;
 
         const recipeIngredients = await tx
           .select()
           .from(recipeIngredientsTable)
-          .where(eq(recipeIngredientsTable.recipeId, recipe.id));
+          .where(and(eq(recipeIngredientsTable.recipeId, recipe.id), eq(recipeIngredientsTable.isDeleted, false)));
 
         for (const ri of recipeIngredients) {
           const totalDeduct = parseFloat(ri.quantity) * item.quantity;
 
-          const [ingredient] = await tx
-            .select()
-            .from(ingredientsTable)
-            .where(eq(ingredientsTable.id, ri.ingredientId));
+          const lockedRows = await tx.execute<{
+            id: number;
+            name: string;
+            stock_quantity: string;
+          }>(
+            sql`SELECT id, name, stock_quantity FROM ingredients WHERE id = ${ri.ingredientId} AND is_deleted = FALSE FOR UPDATE`
+          );
 
+          const ingredient = lockedRows.rows[0];
           if (!ingredient) continue;
 
-          const before = parseFloat(ingredient.stockQuantity);
+          const before = parseFloat(ingredient.stock_quantity);
           const after = Math.max(0, before - totalDeduct);
 
           await tx
@@ -201,7 +205,7 @@ router.get("/bills/:id", requireAuth, requireOwner, async (req, res): Promise<vo
   const [bill] = await db
     .select()
     .from(billsTable)
-    .where(eq(billsTable.id, params.data.id));
+    .where(and(eq(billsTable.id, params.data.id), eq(billsTable.isDeleted, false)));
 
   if (!bill) {
     res.status(404).json({ error: "Bill not found" });
@@ -211,7 +215,7 @@ router.get("/bills/:id", requireAuth, requireOwner, async (req, res): Promise<vo
   const items = await db
     .select()
     .from(billItemsTable)
-    .where(eq(billItemsTable.billId, bill.id));
+    .where(and(eq(billItemsTable.billId, bill.id), eq(billItemsTable.isDeleted, false)));
 
   const [order] = await db
     .select()

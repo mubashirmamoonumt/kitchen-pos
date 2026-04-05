@@ -30,6 +30,7 @@ export const orderItemsTable = pgTable("order_items", {
   itemPrice: numeric("item_price", { precision: 10, scale: 2 }).notNull(),
   quantity: integer("quantity").notNull(),
   subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull(),
+  isDeleted: boolean("is_deleted").notNull().default(false),
 });
 
 export const insertOrderSchema = createInsertSchema(ordersTable).omit({
@@ -38,7 +39,10 @@ export const insertOrderSchema = createInsertSchema(ordersTable).omit({
   updatedAt: true,
   isDeleted: true,
 });
-export const insertOrderItemSchema = createInsertSchema(orderItemsTable).omit({ id: true });
+export const insertOrderItemSchema = createInsertSchema(orderItemsTable).omit({
+  id: true,
+  isDeleted: true,
+});
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type Order = typeof ordersTable.$inferSelect;
 export type OrderItem = typeof orderItemsTable.$inferSelect;
