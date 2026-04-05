@@ -57,7 +57,7 @@ export default function SettingsScreen() {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }]}>
         <Ionicons name="lock-closed-outline" size={48} color={colors.mutedForeground} />
-        <Text style={[styles.noAccess, { color: colors.mutedForeground }]}>Owner access required</Text>
+        <Text style={[styles.noAccess, { color: colors.mutedForeground }]}>{t.ownerOnly}</Text>
       </View>
     );
   }
@@ -164,7 +164,7 @@ export default function SettingsScreen() {
             value={capacity}
             onChangeText={setCapacity}
             keyboardType="number-pad"
-            placeholder="e.g. 50"
+            placeholder={t.settings.capacityPlaceholder}
             style={{ flex: 1, marginBottom: 0 }}
           />
           <TouchableOpacity

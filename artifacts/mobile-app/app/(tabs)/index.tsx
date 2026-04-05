@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useGetOrdersDashboardSummary, useListIngredients, useListOrders } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useI18n } from "@/context/I18nContext";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +19,7 @@ import { router } from "expo-router";
 
 export default function DashboardScreen() {
   const colors = useColors();
+  const { t, isRtl } = useI18n();
   const insets = useSafeAreaInsets();
 
   const summary = useGetOrdersDashboardSummary();
@@ -47,10 +49,10 @@ export default function DashboardScreen() {
       refreshControl={<RefreshControl refreshing={!!isRefreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={[styles.greeting, { color: colors.mutedForeground }]}>Good day</Text>
-          <Text style={[styles.title, { color: colors.foreground }]}>Dashboard</Text>
+      <View style={[styles.headerRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
+        <View style={{ alignItems: isRtl ? "flex-end" : "flex-start" }}>
+          <Text style={[styles.greeting, { color: colors.mutedForeground }]}>{t.goodDay}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t.tabs.dashboard}</Text>
         </View>
         <TouchableOpacity
           style={[styles.newOrderBtn, { backgroundColor: colors.primary }]}
@@ -58,33 +60,33 @@ export default function DashboardScreen() {
           testID="button-new-order"
         >
           <Ionicons name="add" size={20} color={colors.primaryForeground} />
-          <Text style={[styles.newOrderBtnText, { color: colors.primaryForeground }]}>New Order</Text>
+          <Text style={[styles.newOrderBtnText, { color: colors.primaryForeground }]}>{t.tabs.newOrder}</Text>
         </TouchableOpacity>
       </View>
 
       {/* KPI Cards */}
-      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Today's Overview</Text>
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.todaysOverview}</Text>
       <View style={styles.statsGrid}>
         <View style={styles.statsRow}>
           <StatCard
-            title="Today's Orders"
+            title={t.todayOrders}
             value={data?.todayOrderCount ?? "—"}
-            sub={`${data?.activeOrderCount ?? 0} active`}
+            sub={`${data?.activeOrderCount ?? 0} ${t.activeOrders.toLowerCase()}`}
           />
           <StatCard
-            title="Revenue"
+            title={t.todayRevenue}
             value={`PKR ${Number(data?.todayRevenue ?? 0).toLocaleString()}`}
             color={colors.success}
           />
         </View>
         <View style={styles.statsRow}>
           <StatCard
-            title="Pending"
+            title={t.status.pending}
             value={data?.pendingOrderCount ?? "—"}
             color={colors.warning}
           />
           <StatCard
-            title="Customers"
+            title={t.tabs.customers}
             value={data?.totalCustomers ?? "—"}
             color={colors.info}
           />
@@ -92,10 +94,10 @@ export default function DashboardScreen() {
       </View>
 
       {/* Active Orders */}
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Pending Orders</Text>
+      <View style={[styles.sectionHeader, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.pendingOrders}</Text>
         <TouchableOpacity onPress={() => router.push("/(tabs)/orders")} testID="button-view-all-orders">
-          <Text style={[styles.seeAll, { color: colors.primary }]}>View all</Text>
+          <Text style={[styles.seeAll, { color: colors.primary }]}>{t.viewAll}</Text>
         </TouchableOpacity>
       </View>
 
@@ -104,7 +106,7 @@ export default function DashboardScreen() {
       ) : activeOrders.data?.length === 0 ? (
         <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Ionicons name="checkmark-circle-outline" size={32} color={colors.success} />
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No pending orders</Text>
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.noPendingOrders}</Text>
         </View>
       ) : (
         <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -121,7 +123,7 @@ export default function DashboardScreen() {
               <View style={styles.orderLeft}>
                 <Text style={[styles.orderId, { color: colors.foreground }]}>#{order.id}</Text>
                 <Text style={[styles.orderCustomer, { color: colors.mutedForeground }]}>
-                  {order.customerName || "Walk-in"}
+                  {order.customerName || t.order.walkin}
                 </Text>
               </View>
               <View style={styles.orderRight}>
@@ -138,10 +140,10 @@ export default function DashboardScreen() {
       {/* Low Stock Alerts */}
       {lowStock.data && lowStock.data.length > 0 && (
         <>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Low Stock Alerts</Text>
+          <View style={[styles.sectionHeader, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.lowStockAlerts}</Text>
             <TouchableOpacity onPress={() => router.push("/(tabs)/menu")}>
-              <Text style={[styles.seeAll, { color: colors.primary }]}>View all</Text>
+              <Text style={[styles.seeAll, { color: colors.primary }]}>{t.viewAll}</Text>
             </TouchableOpacity>
           </View>
           <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>

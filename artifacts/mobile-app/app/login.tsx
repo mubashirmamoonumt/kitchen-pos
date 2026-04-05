@@ -12,11 +12,13 @@ import {
 import { useLogin, type AuthResponse } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useI18n } from "@/context/I18nContext";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 export default function LoginScreen() {
   const colors = useColors();
+  const { t } = useI18n();
   const { login } = useAuth();
   const loginMutation = useLogin();
 
@@ -27,7 +29,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError("Please enter email and password");
+      setError(t.validation.requiredEmailPassword);
       return;
     }
     setError("");
@@ -40,7 +42,7 @@ export default function LoginScreen() {
         },
         onError: () => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          setError("Invalid credentials. Please try again.");
+          setError(t.validation.invalidCredentials);
         },
       }
     );
@@ -65,7 +67,7 @@ export default function LoginScreen() {
             <Ionicons name="mail-outline" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: colors.foreground }]}
-              placeholder="Email"
+              placeholder={t.email}
               placeholderTextColor={colors.mutedForeground}
               value={email}
               onChangeText={setEmail}
@@ -80,7 +82,7 @@ export default function LoginScreen() {
             <Ionicons name="lock-closed-outline" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: colors.foreground }]}
-              placeholder="Password"
+              placeholder={t.password}
               placeholderTextColor={colors.mutedForeground}
               value={password}
               onChangeText={setPassword}
@@ -111,7 +113,7 @@ export default function LoginScreen() {
             {loginMutation.isPending ? (
               <ActivityIndicator color={colors.primaryForeground} />
             ) : (
-              <Text style={[styles.loginBtnText, { color: colors.primaryForeground }]}>Sign In</Text>
+              <Text style={[styles.loginBtnText, { color: colors.primaryForeground }]}>{t.signIn}</Text>
             )}
           </Pressable>
         </View>

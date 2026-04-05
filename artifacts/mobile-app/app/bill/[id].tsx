@@ -38,10 +38,12 @@ export default function BillDetailScreen() {
         <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.summaryRow, { flexDirection: isRtl ? "row-reverse" : "row", borderBottomColor: colors.border }]}>
             <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{t.billing.paymentMethod}</Text>
-            <Text style={[styles.summaryValue, { color: colors.foreground }]}>{data.paymentMethod}</Text>
+            <Text style={[styles.summaryValue, { color: colors.foreground }]}>
+              {data.paymentMethod === "jazzcash" ? t.payment.jazzcash : data.paymentMethod === "easypaisa" ? t.payment.easypaisa : t.payment.cash}
+            </Text>
           </View>
           <View style={[styles.summaryRow, { flexDirection: isRtl ? "row-reverse" : "row", borderBottomColor: colors.border }]}>
-            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Order Status</Text>
+            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{t.orderStatus.orderStatus}</Text>
             <StatusBadge status={data.order.status} size="sm" />
           </View>
           <View style={[styles.summaryRow, { flexDirection: isRtl ? "row-reverse" : "row", borderBottomColor: colors.border, borderBottomWidth: 0 }]}>

@@ -29,6 +29,10 @@ const translations = {
     error: "Something went wrong",
     retry: "Retry",
     noData: "No data found",
+    noPendingOrders: "No pending orders",
+    todaysOverview: "Today's Overview",
+    goodDay: "Good day",
+    lowStockAlerts: "Low Stock Alerts",
     save: "Save",
     cancel: "Cancel",
     delete: "Delete",
@@ -59,6 +63,8 @@ const translations = {
     orderStatus: {
       moveTo: "Move to",
       advance: "Advance Status",
+      statusLabel: "Status",
+      orderStatus: "Order Status",
     },
     order: {
       id: "Order",
@@ -101,6 +107,7 @@ const translations = {
       editCustomer: "Edit Customer",
       recentOrders: "Recent Orders",
       lifetimeStats: "Lifetime Stats",
+      information: "Information",
     },
     inventory: {
       stockLevel: "Stock Level",
@@ -132,6 +139,8 @@ const translations = {
       scheduleOrder: "Schedule Order",
       date: "Date",
       time: "Time",
+      datePlaceholder: "YYYY-MM-DD",
+      timePlaceholder: "HH:MM",
       dailyCapacity: "Daily Capacity",
       convertToOrder: "Convert to Order",
       capacity: "Capacity",
@@ -150,6 +159,7 @@ const translations = {
     },
     settings: {
       dailyCapacity: "Daily Capacity",
+      capacityPlaceholder: "e.g. 50",
       staff: "Staff Management",
       addStaff: "Add Staff",
       language: "Language",
@@ -177,6 +187,8 @@ const translations = {
       required: "This field is required",
       invalidEmail: "Please enter a valid email",
       minLength: "Too short",
+      requiredEmailPassword: "Please enter email and password",
+      invalidCredentials: "Invalid credentials. Please try again.",
     },
   },
   ur: {
@@ -202,6 +214,10 @@ const translations = {
     error: "کچھ غلط ہو گیا",
     retry: "دوبارہ کوشش کریں",
     noData: "کوئی ڈیٹا نہیں ملا",
+    noPendingOrders: "کوئی زیر التواء آرڈر نہیں",
+    todaysOverview: "آج کا جائزہ",
+    goodDay: "خوش آمدید",
+    lowStockAlerts: "کم اسٹاک انتباہ",
     save: "محفوظ کریں",
     cancel: "منسوخ",
     delete: "حذف کریں",
@@ -232,6 +248,8 @@ const translations = {
     orderStatus: {
       moveTo: "منتقل کریں",
       advance: "حیثیت آگے بڑھائیں",
+      statusLabel: "حیثیت",
+      orderStatus: "آرڈر حیثیت",
     },
     order: {
       id: "آرڈر",
@@ -274,6 +292,7 @@ const translations = {
       editCustomer: "گاہک ترمیم کریں",
       recentOrders: "حالیہ آرڈر",
       lifetimeStats: "مجموعی اعداد",
+      information: "معلومات",
     },
     inventory: {
       stockLevel: "اسٹاک سطح",
@@ -305,6 +324,8 @@ const translations = {
       scheduleOrder: "آرڈر شیڈول کریں",
       date: "تاریخ",
       time: "وقت",
+      datePlaceholder: "YYYY-MM-DD",
+      timePlaceholder: "HH:MM",
       dailyCapacity: "روزانہ صلاحیت",
       convertToOrder: "آرڈر میں تبدیل",
       capacity: "صلاحیت",
@@ -323,6 +344,7 @@ const translations = {
     },
     settings: {
       dailyCapacity: "روزانہ صلاحیت",
+      capacityPlaceholder: "مثلاً 50",
       staff: "عملہ انتظام",
       addStaff: "عملہ شامل کریں",
       language: "زبان",
@@ -350,6 +372,8 @@ const translations = {
       required: "یہ فیلڈ ضروری ہے",
       invalidEmail: "درست ای میل درج کریں",
       minLength: "بہت مختصر",
+      requiredEmailPassword: "ای میل اور پاس ورڈ درج کریں",
+      invalidCredentials: "غلط معلومات۔ دوبارہ کوشش کریں۔",
     },
   },
 };

@@ -103,7 +103,7 @@ export default function OrderDetailScreen() {
       >
         <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.summaryRow, { borderBottomColor: colors.border, flexDirection: isRtl ? "row-reverse" : "row" }]}>
-            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Status</Text>
+            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{t.orderStatus.statusLabel}</Text>
             <StatusBadge status={data.status} />
           </View>
           <View style={[styles.summaryRow, { borderBottomColor: colors.border, flexDirection: isRtl ? "row-reverse" : "row" }]}>
@@ -115,7 +115,9 @@ export default function OrderDetailScreen() {
           {data.paymentMethod && (
             <View style={[styles.summaryRow, { borderBottomColor: colors.border, flexDirection: isRtl ? "row-reverse" : "row" }]}>
               <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{t.order.paymentMethod}</Text>
-              <Text style={[styles.summaryValue, { color: colors.foreground }]}>{data.paymentMethod}</Text>
+              <Text style={[styles.summaryValue, { color: colors.foreground }]}>
+                {data.paymentMethod === "jazzcash" ? t.payment.jazzcash : data.paymentMethod === "easypaisa" ? t.payment.easypaisa : t.payment.cash}
+              </Text>
             </View>
           )}
           <View style={[styles.summaryRow, { borderBottomColor: colors.border, borderBottomWidth: 0, flexDirection: isRtl ? "row-reverse" : "row" }]}>
@@ -178,7 +180,7 @@ export default function OrderDetailScreen() {
               <>
                 <Ionicons name="arrow-forward-circle-outline" size={20} color={colors.primaryForeground} />
                 <Text style={[styles.advanceBtnText, { color: colors.primaryForeground }]}>
-                  {t.orderStatus.moveTo} {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
+                  {t.orderStatus.moveTo} {t.status[nextStatus as keyof typeof t.status] ?? nextStatus}
                 </Text>
               </>
             )}

@@ -142,8 +142,8 @@ export default function EditScheduleScreen() {
       >
         <FormField label={t.customer.name} value={customerName} onChangeText={setCustomerName} placeholder={t.customer.name} autoCapitalize="words" />
         <FormField label={t.customer.phone} value={phone} onChangeText={setPhone} placeholder={t.customer.phone} keyboardType="phone-pad" />
-        <FormField label={t.schedule.date} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" error={errors.date} />
-        <FormField label={t.schedule.time} value={time} onChangeText={setTime} placeholder="HH:MM" error={errors.time} />
+        <FormField label={t.schedule.date} value={date} onChangeText={setDate} placeholder={t.schedule.datePlaceholder} error={errors.date} />
+        <FormField label={t.schedule.time} value={time} onChangeText={setTime} placeholder={t.schedule.timePlaceholder} error={errors.time} />
         <FormField
           label={t.order.notes}
           value={notes}

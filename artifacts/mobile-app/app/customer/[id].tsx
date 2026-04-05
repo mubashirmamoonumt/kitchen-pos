@@ -111,7 +111,7 @@ export default function CustomerDetailScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INFO</Text>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t.customer.information.toUpperCase()}</Text>
           {data.phone ? (
             <View style={[styles.infoRow, { borderBottomColor: colors.border, flexDirection: isRtl ? "row-reverse" : "row" }]}>
               <Ionicons name="call-outline" size={16} color={colors.mutedForeground} />
