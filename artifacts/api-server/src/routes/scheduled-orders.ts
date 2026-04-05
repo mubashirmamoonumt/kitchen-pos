@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc, count, ne, gte, lt } from "drizzle-orm";
+import { eq, and, desc, count, ne } from "drizzle-orm";
 import { db, scheduledOrdersTable, ordersTable, orderItemsTable, appSettingsTable } from "@workspace/db";
 import {
   ListScheduledOrdersQueryParams,
@@ -23,19 +23,15 @@ async function getDailyCapacity(): Promise<number> {
   return setting ? parseInt(setting.value, 10) : 50;
 }
 
-async function countOrdersForDate(dateStr: string): Promise<number> {
-  const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
-  const dayEnd = new Date(`${dateStr}T23:59:59.999Z`);
-
+async function countScheduledOrdersForDate(dateStr: string): Promise<number> {
   const [row] = await db
-    .select({ cnt: count(ordersTable.id) })
-    .from(ordersTable)
+    .select({ cnt: count(scheduledOrdersTable.id) })
+    .from(scheduledOrdersTable)
     .where(
       and(
-        eq(ordersTable.isDeleted, false),
-        ne(ordersTable.status, "cancelled"),
-        gte(ordersTable.createdAt, dayStart),
-        lt(ordersTable.createdAt, new Date(dayEnd.getTime() + 1))
+        eq(scheduledOrdersTable.isDeleted, false),
+        ne(scheduledOrdersTable.status, "cancelled"),
+        eq(scheduledOrdersTable.scheduledDate, dateStr)
       )
     );
   return Number(row?.cnt ?? 0);
@@ -50,7 +46,7 @@ router.get("/scheduled-orders/daily-capacity", requireAuth, async (req, res): Pr
 
   const capacity = await getDailyCapacity();
   const dateStr = query.data.date;
-  const currentCount = await countOrdersForDate(dateStr);
+  const currentCount = await countScheduledOrdersForDate(dateStr);
 
   res.json({
     date: dateStr,
@@ -92,7 +88,7 @@ router.post("/scheduled-orders", requireAuth, async (req, res): Promise<void> =>
   }
 
   const capacity = await getDailyCapacity();
-  const currentCount = await countOrdersForDate(parsed.data.scheduledDate);
+  const currentCount = await countScheduledOrdersForDate(parsed.data.scheduledDate);
   if (currentCount >= capacity) {
     res.status(422).json({
       error: `Daily capacity of ${capacity} orders reached for ${parsed.data.scheduledDate}`,
@@ -199,7 +195,7 @@ router.post("/scheduled-orders/:id/convert", requireAuth, async (req, res): Prom
 
   const today = new Date().toISOString().split("T")[0];
   const capacity = await getDailyCapacity();
-  const currentCount = await countOrdersForDate(today);
+  const currentCount = await countScheduledOrdersForDate(today);
   if (currentCount >= capacity) {
     res.status(422).json({
       error: `Daily capacity of ${capacity} orders reached for today (${today})`,
