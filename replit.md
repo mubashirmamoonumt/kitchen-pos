@@ -56,6 +56,16 @@ Full-featured POS dashboard.
 - Order types: dine-in, takeaway, delivery
 - Soft deletes on all tables
 
-## Remaining Tasks
+### Mobile App (`artifacts/mobile-app`, previewPath: `/mobile-app/`)
+Expo React Native app for kitchen staff on mobile.
+- **Tabs**: Dashboard, Orders, New Order (cart), Menu, Profile
+- **Auth**: JWT stored in `AsyncStorage["mufaz_token"]`; `setAuthTokenGetter` + `setBaseUrl` called at module level in `context/AuthContext.tsx`
+- **Screens**: Login screen with email/password, 5 tab screens
+- **Features**: Dashboard KPIs, order status pipeline, cart-based order creation, menu availability toggle, user profile
+- **Design tokens**: Synced from web portal — terracotta `#d44e1a` (light) / `#d95e28` (dark), cream `#faf9f7`
+- **Hooks**: All from `@workspace/api-client-react`; params passed directly (not wrapped in `{ params: ... }`)
+- **DashboardSummary fields**: `todayOrderCount`, `activeOrderCount`, `pendingOrderCount`, `todayRevenue`, `lowStockCount`, `totalCustomers`
+- **CreateOrderItemInput** requires: `menuItemId`, `itemName`, `itemPrice`, `quantity`
+- **Order** type fields: `id`, `customerId`, `customerName`, `status`, `totalAmount`, `paymentMethod`, `createdAt`
 
-- Task #3: Mobile App (Expo) — NOT YET STARTED
+## All Tasks Complete
