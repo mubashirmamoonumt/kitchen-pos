@@ -1,0 +1,58 @@
+MUFAZ Kitchen POS — Technical Overview
+Alright, let me walk you through what we're building here.
+
+What is it?
+At its core, this is a full-stack operations management system for a home-based food business. "POS" is a bit of an understatement — it's closer to a lightweight ERP tailored specifically for a kitchen. The owner runs the whole business from this: takes orders, generates bills, tracks what's in the fridge, and sees how much money came in today. No pen, no paper, no WhatsApp notes.
+
+Tech Architecture
+The stack is deliberately straightforward:
+Frontend — Next.js 14 with App Router, TypeScript, Tailwind CSS, shadcn/ui. We're using App Router specifically because server actions make Supabase integration much cleaner — no separate API routes needed for most operations. Server components fetch data, client components handle interactivity.
+Backend — There is no separate backend server. Supabase handles everything: PostgreSQL database, Auth, Row Level Security, Realtime subscriptions, and stored procedures. Business logic that needs to be atomic (like inventory deduction) lives in PL/pgSQL functions inside Postgres itself, not in application code.
+Deployment — Standalone Next.js build on a VPS, served via PM2 process manager behind Nginx as a reverse proxy. No Docker complexity unless they want it later.
+
+The 5 Modules — What Each Actually Does
+1. Menu Management
+Standard CRUD but with a few thoughtful touches. Categories are drag-reorderable via dnd-kit — the owner can put "Biryani" before "Drinks" in the menu without touching a database. Items have a soft availability toggle so you can mark something as sold out for the day without deleting it. Everything uses soft deletes — is_deleted = false filter on every query — so nothing is ever actually gone.
+2. Order Management
+This is the most complex user-facing flow. Creating an order is a two-panel layout: left side is the menu picker, right side is a live cart powered by Zustand. Cart state lives client-side only — it's never persisted until "Place Order" is hit.
+Order goes through a status pipeline: pending → confirmed → preparing → ready → delivered → cancelled. Each transition is a deliberate button click. We also have Supabase Realtime subscriptions on the orders table — so if someone places an order on one device, it appears on another device's orders list in real-time without a page refresh. Useful when the owner is in the kitchen and staff is taking orders on another screen.
+3. Customer Management
+Relatively simple — customer profiles with name, phone, address. The interesting part is the automatic stats tracking. There's a Postgres trigger on the orders table: whenever an order transitions to delivered, it fires and increments total_orders and adds to total_spent on the customer's row. So customer lifetime value is always up to date without any application-level code handling it.
+4. Recipes + Inventory + Billing — The Critical Triangle
+This is the most architecturally interesting part of the system, and honestly the main reason this is more than just a simple POS.
+The relationship is:
+Menu Item → has one → Recipe → has many → Recipe Ingredients → each maps to → Ingredient (stock)
+When a bill is generated, we call a PL/pgSQL function deduct_inventory_for_bill() that:
+
+Loops through every order item
+Finds that item's recipe
+Multiplies each recipe ingredient's required quantity by the ordered quantity
+Deducts from the actual stock
+Logs every deduction in inventory_logs with before/after values
+
+This all happens in a single database transaction. If anything fails midway, it rolls back. The application never touches inventory directly — it just calls the function and gets back a JSON response telling it what was deducted and whether any items went below their low-stock threshold.
+Why do it this way? Because if you do inventory deduction in application code with multiple sequential Supabase calls, you're exposed to race conditions and partial failures. Doing it in a Postgres function gives you atomicity for free.
+Bills are intentionally immutable. Once created, no edits — only view and print. This is a business rule enforced at the application layer.
+5. Reports + Scheduling
+Reports are built entirely on Postgres views — daily_sales_summary, top_menu_items, revenue_by_payment_method, etc. The application just queries these views with a date range filter. Charts are rendered client-side with Recharts. This is owner-only, enforced by both middleware (route level) and RLS (data level).
+Scheduling is essentially a pre-order system. A scheduled order is a separate entity — not a real order yet. It sits in a scheduled_orders table with a date and time. When the day comes and the owner confirms it, a single server action converts it into a real order by inserting into the orders table and linking converted_order_id. The capacity system queries how many non-cancelled orders exist for a given date and compares it to app_settings.daily_order_capacity.
+
+Security Model
+Two-layer security:
+Layer 1 — Next.js Middleware. Every request to any /dashboard/* route goes through middleware that checks the Supabase session. No session → redirect to /login. Staff role trying to hit /reports or /settings → redirect to /dashboard. This happens at the edge before any page code runs.
+Layer 2 — Supabase RLS. Even if somehow someone bypassed the middleware, every table has Row Level Security policies. Authenticated users can only read/write their own kitchen's data. The service role key never touches the frontend — only the anon key is exposed, and RLS ensures it can only do what's permitted.
+
+Data Integrity Decisions Worth Noting
+A few deliberate choices that matter:
+Soft deletes everywhere. Every table has is_deleted boolean default false. Nothing is ever DELETEd from the database. This means you can always recover data, audit what happened, and the inventory logs stay coherent even if an ingredient is "deleted."
+Denormalized customer name on orders. The orders table stores customer_name and customer_phone directly, even though we have a customers table. This means if a customer's name is later edited, old bills and orders still show the name at the time of the transaction. Same pattern on bills and order_items — item names are copied at the time of order, not referenced by FK lookup. This is standard POS practice.
+Serial order numbers. We use Postgres SERIAL for order_number and bill_number — simple incrementing integers. These are the human-readable references (#001, #002) shown on receipts and used when communicating with customers. The UUID id is used for all internal foreign key relationships.
+
+What's NOT in this system (intentionally)
+
+No online ordering portal — this is an internal ops tool only
+No payment gateway integration — cash/JazzCash/EasyPaisa are recorded manually
+No multi-branch support — single kitchen, single Supabase project
+No WhatsApp integration yet — Phase 6, not built yet
+No printer SDK integration — print is handled via browser's native print dialog with a CSS print stylesheet
+
