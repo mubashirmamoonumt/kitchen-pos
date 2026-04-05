@@ -3,20 +3,30 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: MUFAZ Kitchen POS API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: categories
+  - name: menu-items
+  - name: customers
+  - name: orders
+  - name: ingredients
+  - name: recipes
+  - name: bills
+  - name: scheduled-orders
+  - name: reports
+  - name: settings
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,7 +34,1287 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── AUTH ───────────────────────────────────────────────────────────────────
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ─── CATEGORIES ─────────────────────────────────────────────────────────────
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List all categories
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [categories]
+      summary: Create a category
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryBody"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+  /categories/{id}:
+    get:
+      operationId: getCategory
+      tags: [categories]
+      summary: Get category by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateCategory
+      tags: [categories]
+      summary: Update a category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryBody"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCategory
+      tags: [categories]
+      summary: Soft-delete a category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /categories/reorder:
+    patch:
+      operationId: reorderCategories
+      tags: [categories]
+      summary: Update sort order for categories
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderCategoriesBody"
+      responses:
+        "200":
+          description: Reordered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ─── MENU ITEMS ─────────────────────────────────────────────────────────────
+  /menu-items:
+    get:
+      operationId: listMenuItems
+      tags: [menu-items]
+      summary: List menu items
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+        - name: isAvailable
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of menu items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MenuItem"
+    post:
+      operationId: createMenuItem
+      tags: [menu-items]
+      summary: Create a menu item
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMenuItemBody"
+      responses:
+        "201":
+          description: Created menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+
+  /menu-items/{id}:
+    get:
+      operationId: getMenuItem
+      tags: [menu-items]
+      summary: Get menu item by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateMenuItem
+      tags: [menu-items]
+      summary: Update a menu item
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMenuItemBody"
+      responses:
+        "200":
+          description: Updated menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteMenuItem
+      tags: [menu-items]
+      summary: Soft-delete a menu item
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /menu-items/{id}/toggle-availability:
+    patch:
+      operationId: toggleMenuItemAvailability
+      tags: [menu-items]
+      summary: Toggle availability of a menu item
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── CUSTOMERS ──────────────────────────────────────────────────────────────
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [customers]
+      summary: List customers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Customer"
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      summary: Create a customer
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCustomerBody"
+      responses:
+        "201":
+          description: Created customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+
+  /customers/{id}:
+    get:
+      operationId: getCustomer
+      tags: [customers]
+      summary: Get customer by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Customer with orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateCustomer
+      tags: [customers]
+      summary: Update a customer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCustomerBody"
+      responses:
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCustomer
+      tags: [customers]
+      summary: Soft-delete a customer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── ORDERS ─────────────────────────────────────────────────────────────────
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: List orders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create a new order
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderBody"
+      responses:
+        "201":
+          description: Created order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetail"
+
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get order by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Order with items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /orders/{id}/status:
+    patch:
+      operationId: updateOrderStatus
+      tags: [orders]
+      summary: Update order status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrderStatusBody"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /orders/dashboard-summary:
+    get:
+      operationId: getOrdersDashboardSummary
+      tags: [orders]
+      summary: Get dashboard summary (today's orders, revenue, active counts)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  # ─── INGREDIENTS ────────────────────────────────────────────────────────────
+  /ingredients:
+    get:
+      operationId: listIngredients
+      tags: [ingredients]
+      summary: List ingredients with stock levels
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lowStock
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of ingredients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ingredient"
+    post:
+      operationId: createIngredient
+      tags: [ingredients]
+      summary: Create an ingredient
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIngredientBody"
+      responses:
+        "201":
+          description: Created ingredient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ingredient"
+
+  /ingredients/{id}:
+    get:
+      operationId: getIngredient
+      tags: [ingredients]
+      summary: Get ingredient by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ingredient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ingredient"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateIngredient
+      tags: [ingredients]
+      summary: Update an ingredient
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateIngredientBody"
+      responses:
+        "200":
+          description: Updated ingredient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ingredient"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteIngredient
+      tags: [ingredients]
+      summary: Soft-delete an ingredient
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /ingredients/{id}/adjust-stock:
+    patch:
+      operationId: adjustIngredientStock
+      tags: [ingredients]
+      summary: Manually adjust stock quantity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdjustStockBody"
+      responses:
+        "200":
+          description: Updated ingredient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ingredient"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /ingredients/inventory-logs:
+    get:
+      operationId: listInventoryLogs
+      tags: [ingredients]
+      summary: List inventory change logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ingredientId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Inventory logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InventoryLog"
+
+  # ─── RECIPES ────────────────────────────────────────────────────────────────
+  /recipes:
+    get:
+      operationId: listRecipes
+      tags: [recipes]
+      summary: List all recipes
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of recipes with ingredients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecipeDetail"
+
+  /recipes/menu-item/{menuItemId}:
+    get:
+      operationId: getRecipeByMenuItem
+      tags: [recipes]
+      summary: Get recipe for a menu item
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: menuItemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recipe with ingredients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: upsertRecipe
+      tags: [recipes]
+      summary: Create or update recipe for a menu item
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: menuItemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertRecipeBody"
+      responses:
+        "200":
+          description: Recipe saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeDetail"
+
+  # ─── BILLS ──────────────────────────────────────────────────────────────────
+  /bills:
+    get:
+      operationId: listBills
+      tags: [bills]
+      summary: List bills
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of bills
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BillSummary"
+    post:
+      operationId: generateBill
+      tags: [bills]
+      summary: Generate a bill for a delivered order (atomically deducts inventory)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateBillBody"
+      responses:
+        "201":
+          description: Bill created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillDetail"
+        "400":
+          description: Bill already exists or order not delivered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /bills/{id}:
+    get:
+      operationId: getBill
+      tags: [bills]
+      summary: Get bill by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bill detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── SCHEDULED ORDERS ───────────────────────────────────────────────────────
+  /scheduled-orders:
+    get:
+      operationId: listScheduledOrders
+      tags: [scheduled-orders]
+      summary: List scheduled orders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scheduled orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduledOrder"
+    post:
+      operationId: createScheduledOrder
+      tags: [scheduled-orders]
+      summary: Create a scheduled order
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScheduledOrderBody"
+      responses:
+        "201":
+          description: Created scheduled order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledOrder"
+
+  /scheduled-orders/{id}:
+    get:
+      operationId: getScheduledOrder
+      tags: [scheduled-orders]
+      summary: Get scheduled order by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Scheduled order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledOrder"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateScheduledOrder
+      tags: [scheduled-orders]
+      summary: Update a scheduled order
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateScheduledOrderBody"
+      responses:
+        "200":
+          description: Updated scheduled order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledOrder"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteScheduledOrder
+      tags: [scheduled-orders]
+      summary: Cancel a scheduled order
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /scheduled-orders/{id}/convert:
+    post:
+      operationId: convertScheduledOrder
+      tags: [scheduled-orders]
+      summary: Convert scheduled order to a real order
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Created order from scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetail"
+        "400":
+          description: Already converted or cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /scheduled-orders/daily-capacity:
+    get:
+      operationId: getDailyCapacity
+      tags: [scheduled-orders]
+      summary: Get daily order count and capacity for a date
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Capacity info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyCapacity"
+
+  # ─── REPORTS ────────────────────────────────────────────────────────────────
+  /reports/daily-sales:
+    get:
+      operationId: getDailySalesReport
+      tags: [reports]
+      summary: Daily sales summary with date range
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dateFrom
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Daily sales data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailySalesReport"
+
+  /reports/top-items:
+    get:
+      operationId: getTopItemsReport
+      tags: [reports]
+      summary: Top menu items by quantity sold
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dateFrom
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Top items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TopItem"
+
+  /reports/revenue-by-payment:
+    get:
+      operationId: getRevenueByPaymentReport
+      tags: [reports]
+      summary: Revenue breakdown by payment method
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dateFrom
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Revenue by payment method
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RevenueByPayment"
+
+  # ─── SETTINGS ────────────────────────────────────────────────────────────────
+  /settings:
+    get:
+      operationId: listSettings
+      tags: [settings]
+      summary: Get all settings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Settings map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsMap"
+    patch:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update settings (key-value pairs)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsMap"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsMap"
+
+  /settings/users:
+    get:
+      operationId: listUsers
+      tags: [settings]
+      summary: List staff users
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserProfile"
+    post:
+      operationId: createUser
+      tags: [settings]
+      summary: Create a staff user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserBody"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /settings/users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [settings]
+      summary: Update a user (name, role, password)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+    delete:
+      operationId: deleteUser
+      tags: [settings]
+      summary: Soft-delete a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +1324,953 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    # AUTH
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserProfile"
+      required:
+        - token
+        - user
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - role
+        - createdAt
+
+    CreateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+      required:
+        - name
+        - email
+        - password
+        - role
+
+    UpdateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+
+    # CATEGORIES
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nameUr:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - sortOrder
+        - createdAt
+        - updatedAt
+
+    CreateCategoryBody:
+      type: object
+      properties:
+        name:
+          type: string
+        nameUr:
+          type: string
+        sortOrder:
+          type: integer
+      required:
+        - name
+
+    UpdateCategoryBody:
+      type: object
+      properties:
+        name:
+          type: string
+        nameUr:
+          type: string
+        sortOrder:
+          type: integer
+
+    ReorderCategoriesBody:
+      type: object
+      properties:
+        order:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              sortOrder:
+                type: integer
+            required:
+              - id
+              - sortOrder
+      required:
+        - order
+
+    # MENU ITEMS
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        categoryId:
+          type: integer
+        name:
+          type: string
+        nameUr:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        descriptionUr:
+          type: ["string", "null"]
+        price:
+          type: string
+        isAvailable:
+          type: boolean
+        imageUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - categoryId
+        - name
+        - price
+        - isAvailable
+        - createdAt
+        - updatedAt
+
+    CreateMenuItemBody:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+        name:
+          type: string
+        nameUr:
+          type: string
+        description:
+          type: string
+        descriptionUr:
+          type: string
+        price:
+          type: string
+        isAvailable:
+          type: boolean
+        imageUrl:
+          type: string
+      required:
+        - categoryId
+        - name
+        - price
+
+    UpdateMenuItemBody:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+        name:
+          type: string
+        nameUr:
+          type: string
+        description:
+          type: string
+        descriptionUr:
+          type: string
+        price:
+          type: string
+        isAvailable:
+          type: boolean
+        imageUrl:
+          type: string
+
+    # CUSTOMERS
+    Customer:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        totalOrders:
+          type: integer
+        totalSpent:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - totalOrders
+        - totalSpent
+        - createdAt
+        - updatedAt
+
+    CustomerDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        totalOrders:
+          type: integer
+        totalSpent:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        recentOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+      required:
+        - id
+        - name
+        - totalOrders
+        - totalSpent
+        - createdAt
+        - updatedAt
+        - recentOrders
+
+    CreateCustomerBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+      required:
+        - name
+
+    UpdateCustomerBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+
+    # ORDERS
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: integer
+        menuItemId:
+          type: ["integer", "null"]
+        itemName:
+          type: string
+        itemPrice:
+          type: string
+        quantity:
+          type: integer
+        subtotal:
+          type: string
+      required:
+        - id
+        - orderId
+        - itemName
+        - itemPrice
+        - quantity
+        - subtotal
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: ["integer", "null"]
+        customerName:
+          type: ["string", "null"]
+        customerPhone:
+          type: ["string", "null"]
+        status:
+          type: string
+        notes:
+          type: ["string", "null"]
+        totalAmount:
+          type: string
+        paymentMethod:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - status
+        - totalAmount
+        - createdAt
+        - updatedAt
+
+    OrderDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: ["integer", "null"]
+        customerName:
+          type: ["string", "null"]
+        customerPhone:
+          type: ["string", "null"]
+        status:
+          type: string
+        notes:
+          type: ["string", "null"]
+        totalAmount:
+          type: string
+        paymentMethod:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+      required:
+        - id
+        - status
+        - totalAmount
+        - createdAt
+        - updatedAt
+        - items
+
+    CreateOrderItemInput:
+      type: object
+      properties:
+        menuItemId:
+          type: integer
+        itemName:
+          type: string
+        itemPrice:
+          type: string
+        quantity:
+          type: integer
+      required:
+        - menuItemId
+        - itemName
+        - itemPrice
+        - quantity
+
+    CreateOrderBody:
+      type: object
+      properties:
+        customerId:
+          type: integer
+        customerName:
+          type: string
+        customerPhone:
+          type: string
+        notes:
+          type: string
+        paymentMethod:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateOrderItemInput"
+      required:
+        - items
+
+    UpdateOrderStatusBody:
+      type: object
+      properties:
+        status:
+          type: string
+        paymentMethod:
+          type: string
+      required:
+        - status
+
+    DashboardSummary:
+      type: object
+      properties:
+        todayRevenue:
+          type: string
+        todayOrderCount:
+          type: integer
+        activeOrderCount:
+          type: integer
+        pendingOrderCount:
+          type: integer
+        lowStockCount:
+          type: integer
+        totalCustomers:
+          type: integer
+      required:
+        - todayRevenue
+        - todayOrderCount
+        - activeOrderCount
+        - pendingOrderCount
+        - lowStockCount
+        - totalCustomers
+
+    # INGREDIENTS
+    Ingredient:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nameUr:
+          type: ["string", "null"]
+        unit:
+          type: string
+        stockQuantity:
+          type: string
+        lowStockThreshold:
+          type: string
+        isLowStock:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - unit
+        - stockQuantity
+        - lowStockThreshold
+        - isLowStock
+        - createdAt
+        - updatedAt
+
+    CreateIngredientBody:
+      type: object
+      properties:
+        name:
+          type: string
+        nameUr:
+          type: string
+        unit:
+          type: string
+        stockQuantity:
+          type: string
+        lowStockThreshold:
+          type: string
+      required:
+        - name
+        - unit
+
+    UpdateIngredientBody:
+      type: object
+      properties:
+        name:
+          type: string
+        nameUr:
+          type: string
+        unit:
+          type: string
+        stockQuantity:
+          type: string
+        lowStockThreshold:
+          type: string
+
+    AdjustStockBody:
+      type: object
+      properties:
+        adjustment:
+          type: string
+        reason:
+          type: string
+      required:
+        - adjustment
+
+    InventoryLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        ingredientId:
+          type: integer
+        ingredientName:
+          type: string
+        quantityBefore:
+          type: string
+        quantityAfter:
+          type: string
+        change:
+          type: string
+        reason:
+          type: ["string", "null"]
+        billId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - ingredientId
+        - ingredientName
+        - quantityBefore
+        - quantityAfter
+        - change
+        - createdAt
+
+    # RECIPES
+    RecipeIngredientDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        recipeId:
+          type: integer
+        ingredientId:
+          type: integer
+        ingredientName:
+          type: string
+        unit:
+          type: string
+        quantity:
+          type: string
+      required:
+        - id
+        - recipeId
+        - ingredientId
+        - ingredientName
+        - unit
+        - quantity
+
+    RecipeDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        menuItemId:
+          type: integer
+        menuItemName:
+          type: string
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeIngredientDetail"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - menuItemId
+        - menuItemName
+        - ingredients
+        - createdAt
+        - updatedAt
+
+    RecipeIngredientInput:
+      type: object
+      properties:
+        ingredientId:
+          type: integer
+        quantity:
+          type: string
+      required:
+        - ingredientId
+        - quantity
+
+    UpsertRecipeBody:
+      type: object
+      properties:
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeIngredientInput"
+      required:
+        - ingredients
+
+    # BILLS
+    BillItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        billId:
+          type: integer
+        itemName:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: string
+        subtotal:
+          type: string
+      required:
+        - id
+        - billId
+        - itemName
+        - quantity
+        - unitPrice
+        - subtotal
+
+    BillSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: integer
+        totalAmount:
+          type: string
+        paymentMethod:
+          type: string
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - orderId
+        - totalAmount
+        - paymentMethod
+        - createdAt
+
+    BillDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: integer
+        totalAmount:
+          type: string
+        paymentMethod:
+          type: string
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BillItem"
+        order:
+          $ref: "#/components/schemas/Order"
+        deductions:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryLog"
+      required:
+        - id
+        - orderId
+        - totalAmount
+        - paymentMethod
+        - createdAt
+        - items
+        - order
+        - deductions
+
+    GenerateBillBody:
+      type: object
+      properties:
+        orderId:
+          type: integer
+        paymentMethod:
+          type: string
+        notes:
+          type: string
+      required:
+        - orderId
+        - paymentMethod
+
+    # SCHEDULED ORDERS
+    ScheduledOrderItem:
+      type: object
+      properties:
+        menuItemId:
+          type: integer
+        itemName:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: string
+      required:
+        - menuItemId
+        - itemName
+        - quantity
+        - unitPrice
+
+    ScheduledOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: ["integer", "null"]
+        customerName:
+          type: ["string", "null"]
+        customerPhone:
+          type: ["string", "null"]
+        scheduledDate:
+          type: string
+        scheduledTime:
+          type: string
+        notes:
+          type: ["string", "null"]
+        status:
+          type: string
+        convertedOrderId:
+          type: ["integer", "null"]
+        items:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/ScheduledOrderItem"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - scheduledDate
+        - scheduledTime
+        - status
+        - createdAt
+        - updatedAt
+
+    CreateScheduledOrderBody:
+      type: object
+      properties:
+        customerId:
+          type: integer
+        customerName:
+          type: string
+        customerPhone:
+          type: string
+        scheduledDate:
+          type: string
+        scheduledTime:
+          type: string
+        notes:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduledOrderItem"
+      required:
+        - scheduledDate
+        - scheduledTime
+        - items
+
+    UpdateScheduledOrderBody:
+      type: object
+      properties:
+        customerId:
+          type: integer
+        customerName:
+          type: string
+        customerPhone:
+          type: string
+        scheduledDate:
+          type: string
+        scheduledTime:
+          type: string
+        notes:
+          type: string
+        status:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduledOrderItem"
+
+    DailyCapacity:
+      type: object
+      properties:
+        date:
+          type: string
+        currentCount:
+          type: integer
+        capacity:
+          type: integer
+        available:
+          type: integer
+      required:
+        - date
+        - currentCount
+        - capacity
+        - available
+
+    # REPORTS
+    DailySalesSummaryItem:
+      type: object
+      properties:
+        date:
+          type: string
+        revenue:
+          type: string
+        orderCount:
+          type: integer
+        avgOrderValue:
+          type: string
+      required:
+        - date
+        - revenue
+        - orderCount
+        - avgOrderValue
+
+    DailySalesReport:
+      type: object
+      properties:
+        summary:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailySalesSummaryItem"
+        totalRevenue:
+          type: string
+        totalOrders:
+          type: integer
+      required:
+        - summary
+        - totalRevenue
+        - totalOrders
+
+    TopItem:
+      type: object
+      properties:
+        menuItemId:
+          type: integer
+        itemName:
+          type: string
+        totalQuantity:
+          type: integer
+        totalRevenue:
+          type: string
+      required:
+        - menuItemId
+        - itemName
+        - totalQuantity
+        - totalRevenue
+
+    RevenueByPayment:
+      type: object
+      properties:
+        paymentMethod:
+          type: string
+        revenue:
+          type: string
+        orderCount:
+          type: integer
+      required:
+        - paymentMethod
+        - revenue
+        - orderCount
+
+    # SETTINGS
+    SettingsMap:
+      type: object
+      additionalProperties:
+        type: string
