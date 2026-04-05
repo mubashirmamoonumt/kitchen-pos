@@ -26,6 +26,8 @@ const queryClient = new QueryClient({
   },
 });
 
+const PUBLIC_ROUTES = new Set(["login", "+not-found"]);
+
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();
   const segments = useSegments();
@@ -33,10 +35,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isLoading) return;
-    const inTabsGroup = segments[0] === "(tabs)";
-    if (!token && inTabsGroup) {
+    const currentRoute = segments[0] as string | undefined;
+    const isPublicRoute = !currentRoute || PUBLIC_ROUTES.has(currentRoute);
+    if (!token && !isPublicRoute) {
       router.replace("/login");
-    } else if (token && segments[0] === "login") {
+    } else if (token && currentRoute === "login") {
       router.replace("/(tabs)");
     }
   }, [token, isLoading, segments, router]);
@@ -62,6 +65,7 @@ function RootLayoutNav() {
         <Stack.Screen name="order/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="bill/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="schedule/new" options={{ headerShown: false }} />
+        <Stack.Screen name="schedule/edit/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="menu-item/new" options={{ headerShown: false }} />
         <Stack.Screen name="menu-item/edit/[id]" options={{ headerShown: false }} />
       </Stack>
