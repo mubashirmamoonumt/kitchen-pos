@@ -12,14 +12,12 @@ import {
   useGetDailySalesReport,
   useGetTopItemsReport,
   useGetRevenueByPaymentReport,
+  useGetMe,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useI18n } from "@/context/I18nContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useGetMe } from "@workspace/api-client-react";
-import { router } from "expo-router";
-import { useEffect } from "react";
 
 function getDateRange(days: number) {
   const end = new Date();
@@ -50,7 +48,7 @@ export default function ReportsScreen() {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }]}>
         <Ionicons name="lock-closed-outline" size={48} color={colors.mutedForeground} />
-        <Text style={[styles.noAccess, { color: colors.mutedForeground }]}>Owner access required</Text>
+        <Text style={[styles.noAccess, { color: colors.mutedForeground }]}>{t.ownerOnly}</Text>
       </View>
     );
   }
@@ -170,7 +168,7 @@ export default function ReportsScreen() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.reportItemName, { color: colors.foreground, textAlign: isRtl ? "right" : "left" }]}>
-                    {item.paymentMethod === "cash" ? "Cash" : item.paymentMethod === "jazzcash" ? "JazzCash" : "EasyPaisa"}
+                    {item.paymentMethod === "cash" ? t.payment.cash : item.paymentMethod === "jazzcash" ? t.payment.jazzcash : t.payment.easypaisa}
                   </Text>
                   <Text style={[styles.reportItemSub, { color: colors.mutedForeground }]}>
                     {item.orderCount} {t.reports.orders}

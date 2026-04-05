@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import { useCreateScheduledOrder, useListCustomers, getListScheduledOrdersQueryKey } from "@workspace/api-client-react";
+import { useCreateScheduledOrder, getListScheduledOrdersQueryKey } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useI18n } from "@/context/I18nContext";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -22,7 +22,6 @@ export default function NewScheduleScreen() {
   const { t, isRtl } = useI18n();
   const qc = useQueryClient();
   const createScheduled = useCreateScheduledOrder();
-  const customers = useListCustomers();
 
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");

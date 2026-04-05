@@ -107,7 +107,7 @@ export default function MenuScreen() {
         </View>
         <FlatList
           horizontal
-          data={[{ id: null as number | null, name: "All" }, ...(categories.data?.map((c) => ({ id: c.id as number | null, name: c.name })) ?? [])]}
+          data={[{ id: null as number | null, name: t.all }, ...(categories.data?.map((c) => ({ id: c.id as number | null, name: c.name })) ?? [])]}
           keyExtractor={(c) => String(c.id)}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterRow}

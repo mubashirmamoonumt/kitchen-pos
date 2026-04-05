@@ -4,7 +4,6 @@ import {
   Alert,
   FlatList,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,6 +18,7 @@ import {
   getListOrdersQueryKey,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useI18n } from "@/context/I18nContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
@@ -38,6 +38,7 @@ export default function NewOrderScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const { t, isRtl } = useI18n();
 
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -73,7 +74,7 @@ export default function NewOrderScreen() {
 
   const handlePlaceOrder = () => {
     if (cart.length === 0) {
-      Alert.alert("Empty Cart", "Please add at least one item to the order.");
+      Alert.alert(t.order.cart, t.order.emptyCart);
       return;
     }
     createOrder.mutate(
@@ -98,10 +99,16 @@ export default function NewOrderScreen() {
           router.push("/(tabs)/orders");
         },
         onError: () => {
-          Alert.alert("Error", "Failed to create order. Please try again.");
+          Alert.alert(t.error, t.retry);
         },
       }
     );
+  };
+
+  const getPaymentLabel = (method: PaymentMethod) => {
+    if (method === "jazzcash") return t.payment.jazzcash;
+    if (method === "easypaisa") return t.payment.easypaisa;
+    return t.payment.cash;
   };
 
   const renderMenuItem = ({ item }: { item: NonNullable<typeof menuItems.data>[number] }) => {
@@ -128,7 +135,7 @@ export default function NewOrderScreen() {
           PKR {Number(item.price).toLocaleString()}
         </Text>
         {!item.isAvailable && (
-          <Text style={[styles.unavailable, { color: colors.mutedForeground }]}>Unavailable</Text>
+          <Text style={[styles.unavailable, { color: colors.mutedForeground }]}>{t.menu.unavailable}</Text>
         )}
         {inCart && (
           <View style={[styles.qtyBadge, { backgroundColor: colors.primary }]}>
@@ -155,13 +162,12 @@ export default function NewOrderScreen() {
           <TouchableOpacity onPress={() => setShowCart(false)} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={colors.foreground} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.foreground }]}>Review Order</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t.order.reviewOrder}</Text>
         </View>
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.cartContent} showsVerticalScrollIndicator={false}>
-          {/* Cart items */}
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Items</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t.order.items}</Text>
             {cart.map((item) => (
               <View key={item.menuItemId} style={[styles.cartRow, { borderBottomColor: colors.border }]}>
                 <Text style={[styles.cartItemName, { color: colors.foreground }]}>{item.name}</Text>
@@ -180,14 +186,14 @@ export default function NewOrderScreen() {
               </View>
             ))}
             <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
-              <Text style={[styles.totalLabel, { color: colors.foreground }]}>Total</Text>
+              <Text style={[styles.totalLabel, { color: colors.foreground }]}>{t.billing.total}</Text>
               <Text style={[styles.totalAmount, { color: colors.foreground }]}>PKR {total.toLocaleString()}</Text>
             </View>
           </View>
 
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Payment Method</Text>
-            <View style={styles.optRow}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t.billing.paymentMethod}</Text>
+            <View style={[styles.optRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
               {(["cash", "jazzcash", "easypaisa"] as PaymentMethod[]).map((method) => (
                 <TouchableOpacity
                   key={method}
@@ -195,7 +201,7 @@ export default function NewOrderScreen() {
                   onPress={() => setPaymentMethod(method)}
                 >
                   <Text style={[styles.optChipText, { color: paymentMethod === method ? colors.primary : colors.mutedForeground }]}>
-                    {method === "jazzcash" ? "JazzCash" : method === "easypaisa" ? "EasyPaisa" : "Cash"}
+                    {getPaymentLabel(method)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -203,13 +209,13 @@ export default function NewOrderScreen() {
           </View>
 
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Customer (Optional)</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optRow}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t.order.customer}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.optRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
               <TouchableOpacity
                 style={[styles.optChip, { borderColor: !customerId ? colors.primary : colors.border, backgroundColor: !customerId ? colors.primary + "15" : "transparent" }]}
                 onPress={() => setCustomerId(undefined)}
               >
-                <Text style={[styles.optChipText, { color: !customerId ? colors.primary : colors.mutedForeground }]}>Walk-in</Text>
+                <Text style={[styles.optChipText, { color: !customerId ? colors.primary : colors.mutedForeground }]}>{t.order.walkin}</Text>
               </TouchableOpacity>
               {customers.data?.map((c) => (
                 <TouchableOpacity
@@ -244,7 +250,7 @@ export default function NewOrderScreen() {
               <ActivityIndicator color={colors.primaryForeground} />
             ) : (
               <>
-                <Text style={[styles.placeOrderBtnText, { color: colors.primaryForeground }]}>Place Order</Text>
+                <Text style={[styles.placeOrderBtnText, { color: colors.primaryForeground }]}>{t.order.placeOrder}</Text>
                 <Text style={[styles.placeOrderAmount, { color: colors.primaryForeground + "cc" }]}>
                   PKR {total.toLocaleString()}
                 </Text>
@@ -268,10 +274,10 @@ export default function NewOrderScreen() {
           },
         ]}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>New Order</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{t.tabs.newOrder}</Text>
         <FlatList
           horizontal
-          data={[{ id: null as number | null, name: "All" }, ...(categories.data?.map((c) => ({ id: c.id as number | null, name: c.name })) ?? [])]}
+          data={[{ id: null as number | null, name: t.all }, ...(categories.data?.map((c) => ({ id: c.id as number | null, name: c.name })) ?? [])]}
           keyExtractor={(c) => String(c.id)}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterRow}
@@ -328,7 +334,7 @@ export default function NewOrderScreen() {
             <View style={[styles.cartCount, { backgroundColor: colors.primaryForeground + "30" }]}>
               <Text style={[styles.cartCountText, { color: colors.primaryForeground }]}>{cartCount}</Text>
             </View>
-            <Text style={[styles.cartBarText, { color: colors.primaryForeground }]}>Review Order</Text>
+            <Text style={[styles.cartBarText, { color: colors.primaryForeground }]}>{t.order.reviewOrder}</Text>
             <Text style={[styles.cartBarAmount, { color: colors.primaryForeground }]}>PKR {total.toLocaleString()}</Text>
           </TouchableOpacity>
         </View>

@@ -156,7 +156,7 @@ export default function OrdersScreen() {
                   { color: filterStatus === s ? colors.primaryForeground : colors.mutedForeground },
                 ]}
               >
-                {s === "all" ? "All" : t.status[s as keyof typeof t.status]}
+                {s === "all" ? t.all : t.status[s as keyof typeof t.status]}
               </Text>
             </TouchableOpacity>
           )}

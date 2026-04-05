@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { I18nManager } from "react-native";
 
 export type Language = "en" | "ur";
 
@@ -21,6 +20,7 @@ const translations = {
       settings: "Settings",
       profile: "Profile",
     },
+    all: "All",
     signIn: "Sign In",
     signOut: "Sign Out",
     email: "Email",
@@ -160,6 +160,19 @@ const translations = {
         staff: "Staff",
       },
     },
+    profile: {
+      title: "Profile",
+      application: "Application",
+      version: "Version",
+      kitchen: "Kitchen",
+      display: "Display",
+      theme: "Theme",
+      themeLight: "Light Mode",
+      themeDark: "Dark Mode",
+      language: "Language",
+      signOut: "Sign Out",
+    },
+    ownerOnly: "Owner access required",
     validation: {
       required: "This field is required",
       invalidEmail: "Please enter a valid email",
@@ -180,6 +193,7 @@ const translations = {
       settings: "ترتیبات",
       profile: "پروفائل",
     },
+    all: "سب",
     signIn: "سائن ان",
     signOut: "سائن آؤٹ",
     email: "ای میل",
@@ -319,6 +333,19 @@ const translations = {
         staff: "عملہ",
       },
     },
+    profile: {
+      title: "پروفائل",
+      application: "ایپلیکیشن",
+      version: "ورژن",
+      kitchen: "کچن",
+      display: "ڈسپلے",
+      theme: "تھیم",
+      themeLight: "لائٹ موڈ",
+      themeDark: "ڈارک موڈ",
+      language: "زبان",
+      signOut: "سائن آؤٹ",
+    },
+    ownerOnly: "مالک کی رسائی درکار ہے",
     validation: {
       required: "یہ فیلڈ ضروری ہے",
       invalidEmail: "درست ای میل درج کریں",
