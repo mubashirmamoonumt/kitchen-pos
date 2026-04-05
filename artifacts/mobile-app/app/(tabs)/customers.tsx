@@ -65,7 +65,7 @@ export default function CustomersScreen() {
         ]}
       >
         <View style={[styles.titleRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t.customers}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t.tabs.customers}</Text>
           <TouchableOpacity
             style={[styles.addBtn, { backgroundColor: colors.primary }]}
             onPress={() => router.push("/customer/new")}

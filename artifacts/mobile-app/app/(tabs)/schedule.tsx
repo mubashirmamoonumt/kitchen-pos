@@ -1,6 +1,7 @@
 import React from "react";
 import {
   ActivityIndicator,
+  DimensionValue,
   FlatList,
   Platform,
   RefreshControl,
@@ -102,7 +103,7 @@ export default function ScheduleScreen() {
         ]}
       >
         <View style={[styles.titleRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t.schedule}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t.tabs.schedule}</Text>
           <TouchableOpacity
             style={[styles.addBtn, { backgroundColor: colors.primary }]}
             onPress={() => router.push("/schedule/new")}
@@ -126,7 +127,7 @@ export default function ScheduleScreen() {
                 style={[
                   styles.progressFill,
                   {
-                    width: `${Math.min(capPercent, 100)}%` as any,
+                    width: `${Math.min(capPercent, 100)}%` as DimensionValue,
                     backgroundColor: capPercent >= 90 ? colors.destructive : capPercent >= 70 ? colors.warning : colors.success,
                   },
                 ]}

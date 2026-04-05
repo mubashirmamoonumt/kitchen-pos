@@ -67,7 +67,7 @@ export default function ReportsScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>{t.reports}</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>{t.tabs.reports}</Text>
 
       <View style={[styles.rangeRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
         {[7, 14, 30].map((d) => (

@@ -61,7 +61,7 @@ export default function CustomerDetailScreen() {
   if (customer.isLoading) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <ScreenHeader title={t.customers} showBack />
+        <ScreenHeader title={t.tabs.customers} showBack />
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} size="large" />
         </View>

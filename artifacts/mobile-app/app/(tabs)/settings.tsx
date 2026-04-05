@@ -136,7 +136,7 @@ export default function SettingsScreen() {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>{t.settings}</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>{t.tabs.settings}</Text>
 
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t.settings.language.toUpperCase()}</Text>

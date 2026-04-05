@@ -58,7 +58,7 @@ export default function BillsScreen() {
           },
         ]}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>{t.bills}</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{t.tabs.bills}</Text>
       </View>
 
       {bills.isLoading ? (

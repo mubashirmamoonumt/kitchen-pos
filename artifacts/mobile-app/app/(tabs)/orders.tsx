@@ -115,7 +115,7 @@ export default function OrdersScreen() {
           },
         ]}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>{t.orders}</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{t.tabs.orders}</Text>
         <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: isRtl ? "row-reverse" : "row" }]}>
           <Ionicons name="search-outline" size={16} color={colors.mutedForeground} />
           <TextInput

@@ -101,7 +101,7 @@ export default function InventoryScreen() {
         ]}
       >
         <View style={[styles.titleRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t.inventory}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t.tabs.inventory}</Text>
           {activeTab === "ingredients" && (
             <TouchableOpacity
               style={[styles.addBtn, { backgroundColor: colors.primary }]}

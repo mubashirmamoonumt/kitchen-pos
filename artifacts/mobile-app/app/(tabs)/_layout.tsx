@@ -6,58 +6,63 @@ import { SymbolView } from "expo-symbols";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { useGetMe } from "@workspace/api-client-react";
 
 import { useColors } from "@/hooks/useColors";
-import { useI18n } from "@/context/I18nContext";
 
 function NativeTabLayout() {
-  const { t } = useI18n();
+  const { data: me } = useGetMe();
+  const isOwner = me?.role === "owner";
 
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>{t.dashboard}</Label>
+        <Label>Dashboard</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="orders">
         <Icon sf={{ default: "list.clipboard", selected: "list.clipboard.fill" }} />
-        <Label>{t.orders}</Label>
+        <Label>Orders</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="new-order">
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
-        <Label>{t.newOrder}</Label>
+        <Label>New Order</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="menu">
         <Icon sf={{ default: "fork.knife", selected: "fork.knife" }} />
-        <Label>{t.menu}</Label>
+        <Label>Menu</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="customers">
         <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
-        <Label>{t.customers}</Label>
+        <Label>Customers</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="inventory">
         <Icon sf={{ default: "cube.box", selected: "cube.box.fill" }} />
-        <Label>{t.inventory}</Label>
+        <Label>Inventory</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="bills">
         <Icon sf={{ default: "doc.text", selected: "doc.text.fill" }} />
-        <Label>{t.bills}</Label>
+        <Label>Bills</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="schedule">
         <Icon sf={{ default: "calendar", selected: "calendar.fill" }} />
-        <Label>{t.schedule}</Label>
+        <Label>Schedule</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="reports">
-        <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
-        <Label>{t.reports}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="settings">
-        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
-        <Label>{t.settings}</Label>
-      </NativeTabs.Trigger>
+      {isOwner && (
+        <NativeTabs.Trigger name="reports">
+          <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
+          <Label>Reports</Label>
+        </NativeTabs.Trigger>
+      )}
+      {isOwner && (
+        <NativeTabs.Trigger name="settings">
+          <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
+          <Label>Settings</Label>
+        </NativeTabs.Trigger>
+      )}
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>{t.profile}</Label>
+        <Label>Profile</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -66,10 +71,12 @@ function NativeTabLayout() {
 function ClassicTabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
+  const { data: me } = useGetMe();
 
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
+  const isOwner = me?.role === "owner";
 
   return (
     <Tabs
@@ -199,6 +206,7 @@ function ClassicTabLayout() {
         name="reports"
         options={{
           title: "Reports",
+          tabBarItemStyle: isOwner ? undefined : { display: "none" },
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="chart.bar" tintColor={color} size={24} />
@@ -211,6 +219,7 @@ function ClassicTabLayout() {
         name="settings"
         options={{
           title: "Settings",
+          tabBarItemStyle: isOwner ? undefined : { display: "none" },
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="gearshape" tintColor={color} size={24} />

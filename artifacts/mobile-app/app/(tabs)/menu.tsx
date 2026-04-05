@@ -95,7 +95,7 @@ export default function MenuScreen() {
         ]}
       >
         <View style={[styles.titleRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t.menu}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t.tabs.menu}</Text>
           <TouchableOpacity
             style={[styles.addBtn, { backgroundColor: colors.primary }]}
             onPress={() => router.push("/menu-item/new")}

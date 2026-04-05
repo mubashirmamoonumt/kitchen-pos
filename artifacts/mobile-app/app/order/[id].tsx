@@ -81,7 +81,7 @@ export default function OrderDetailScreen() {
   if (order.isLoading) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <ScreenHeader title={t.orders} showBack />
+        <ScreenHeader title={t.tabs.orders} showBack />
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} size="large" />
         </View>
