@@ -23,7 +23,7 @@ router.get("/ingredients/inventory-logs", requireAuth, async (req, res): Promise
     return;
   }
 
-  const conditions = [];
+  const conditions = [eq(inventoryLogsTable.isDeleted, false)];
   if (query.data.ingredientId) {
     conditions.push(eq(inventoryLogsTable.ingredientId, query.data.ingredientId));
   }
@@ -31,7 +31,7 @@ router.get("/ingredients/inventory-logs", requireAuth, async (req, res): Promise
   const logs = await db
     .select()
     .from(inventoryLogsTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(desc(inventoryLogsTable.createdAt))
     .limit(200);
 
@@ -45,22 +45,24 @@ router.get("/ingredients", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  const conditions = [eq(ingredientsTable.isDeleted, false)];
+  if (query.data.lowStock) {
+    conditions.push(
+      sql`${ingredientsTable.stockQuantity}::numeric <= ${ingredientsTable.lowStockThreshold}::numeric`
+    );
+  }
+
   const ingredients = await db
     .select()
     .from(ingredientsTable)
-    .where(eq(ingredientsTable.isDeleted, false));
+    .where(and(...conditions));
 
-  const result = ingredients
-    .map((i) => ({
+  res.json(
+    ingredients.map((i) => ({
       ...i,
       isLowStock: parseFloat(i.stockQuantity) <= parseFloat(i.lowStockThreshold),
     }))
-    .filter((i) => {
-      if (query.data.lowStock) return i.isLowStock;
-      return true;
-    });
-
-  res.json(result);
+  );
 });
 
 router.post("/ingredients", requireAuth, async (req, res): Promise<void> => {
@@ -85,8 +87,8 @@ router.get("/ingredients/:id", requireAuth, async (req, res): Promise<void> => {
   const [ingredient] = await db
     .select()
     .from(ingredientsTable)
-    .where(eq(ingredientsTable.id, params.data.id));
-  if (!ingredient || ingredient.isDeleted) {
+    .where(and(eq(ingredientsTable.id, params.data.id), eq(ingredientsTable.isDeleted, false)));
+  if (!ingredient) {
     res.status(404).json({ error: "Ingredient not found" });
     return;
   }
@@ -110,8 +112,8 @@ router.patch("/ingredients/:id/adjust-stock", requireAuth, async (req, res): Pro
   const [ingredient] = await db
     .select()
     .from(ingredientsTable)
-    .where(eq(ingredientsTable.id, params.data.id));
-  if (!ingredient || ingredient.isDeleted) {
+    .where(and(eq(ingredientsTable.id, params.data.id), eq(ingredientsTable.isDeleted, false)));
+  if (!ingredient) {
     res.status(404).json({ error: "Ingredient not found" });
     return;
   }
@@ -122,7 +124,7 @@ router.patch("/ingredients/:id/adjust-stock", requireAuth, async (req, res): Pro
   const [updated] = await db
     .update(ingredientsTable)
     .set({ stockQuantity: after.toString() })
-    .where(eq(ingredientsTable.id, params.data.id))
+    .where(and(eq(ingredientsTable.id, params.data.id), eq(ingredientsTable.isDeleted, false)))
     .returning();
 
   await db.insert(inventoryLogsTable).values({
@@ -154,7 +156,7 @@ router.patch("/ingredients/:id", requireAuth, async (req, res): Promise<void> =>
   const [ingredient] = await db
     .update(ingredientsTable)
     .set(parsed.data)
-    .where(eq(ingredientsTable.id, params.data.id))
+    .where(and(eq(ingredientsTable.id, params.data.id), eq(ingredientsTable.isDeleted, false)))
     .returning();
   if (!ingredient) {
     res.status(404).json({ error: "Ingredient not found" });
@@ -175,7 +177,7 @@ router.delete("/ingredients/:id", requireAuth, async (req, res): Promise<void> =
   const [ingredient] = await db
     .update(ingredientsTable)
     .set({ isDeleted: true })
-    .where(eq(ingredientsTable.id, params.data.id))
+    .where(and(eq(ingredientsTable.id, params.data.id), eq(ingredientsTable.isDeleted, false)))
     .returning();
   if (!ingredient) {
     res.status(404).json({ error: "Ingredient not found" });

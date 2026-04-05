@@ -55,8 +55,8 @@ router.get("/menu-items/:id", requireAuth, async (req, res): Promise<void> => {
   const [item] = await db
     .select()
     .from(menuItemsTable)
-    .where(eq(menuItemsTable.id, params.data.id));
-  if (!item || item.isDeleted) {
+    .where(and(eq(menuItemsTable.id, params.data.id), eq(menuItemsTable.isDeleted, false)));
+  if (!item) {
     res.status(404).json({ error: "Menu item not found" });
     return;
   }
@@ -72,15 +72,15 @@ router.patch("/menu-items/:id/toggle-availability", requireAuth, async (req, res
   const [existing] = await db
     .select()
     .from(menuItemsTable)
-    .where(eq(menuItemsTable.id, params.data.id));
-  if (!existing || existing.isDeleted) {
+    .where(and(eq(menuItemsTable.id, params.data.id), eq(menuItemsTable.isDeleted, false)));
+  if (!existing) {
     res.status(404).json({ error: "Menu item not found" });
     return;
   }
   const [item] = await db
     .update(menuItemsTable)
     .set({ isAvailable: !existing.isAvailable })
-    .where(eq(menuItemsTable.id, params.data.id))
+    .where(and(eq(menuItemsTable.id, params.data.id), eq(menuItemsTable.isDeleted, false)))
     .returning();
   res.json(item);
 });
@@ -99,7 +99,7 @@ router.patch("/menu-items/:id", requireAuth, async (req, res): Promise<void> => 
   const [item] = await db
     .update(menuItemsTable)
     .set(parsed.data)
-    .where(eq(menuItemsTable.id, params.data.id))
+    .where(and(eq(menuItemsTable.id, params.data.id), eq(menuItemsTable.isDeleted, false)))
     .returning();
   if (!item) {
     res.status(404).json({ error: "Menu item not found" });
@@ -117,7 +117,7 @@ router.delete("/menu-items/:id", requireAuth, async (req, res): Promise<void> =>
   const [item] = await db
     .update(menuItemsTable)
     .set({ isDeleted: true })
-    .where(eq(menuItemsTable.id, params.data.id))
+    .where(and(eq(menuItemsTable.id, params.data.id), eq(menuItemsTable.isDeleted, false)))
     .returning();
   if (!item) {
     res.status(404).json({ error: "Menu item not found" });

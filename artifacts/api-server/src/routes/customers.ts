@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, or, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db, customersTable, ordersTable } from "@workspace/db";
 import {
   ListCustomersQueryParams,
@@ -20,27 +20,19 @@ router.get("/customers", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  let customers;
+  let customers = await db
+    .select()
+    .from(customersTable)
+    .where(eq(customersTable.isDeleted, false))
+    .orderBy(desc(customersTable.createdAt));
+
   if (query.data.search) {
-    const search = `%${query.data.search}%`;
-    customers = await db
-      .select()
-      .from(customersTable)
-      .where(
-        eq(customersTable.isDeleted, false)
-      )
-      .orderBy(desc(customersTable.createdAt));
+    const s = query.data.search.toLowerCase();
     customers = customers.filter(
       (c) =>
-        c.name.toLowerCase().includes(query.data.search!.toLowerCase()) ||
+        c.name.toLowerCase().includes(s) ||
         (c.phone && c.phone.includes(query.data.search!))
     );
-  } else {
-    customers = await db
-      .select()
-      .from(customersTable)
-      .where(eq(customersTable.isDeleted, false))
-      .orderBy(desc(customersTable.createdAt));
   }
 
   res.json(customers);
@@ -65,9 +57,9 @@ router.get("/customers/:id", requireAuth, async (req, res): Promise<void> => {
   const [customer] = await db
     .select()
     .from(customersTable)
-    .where(eq(customersTable.id, params.data.id));
+    .where(and(eq(customersTable.id, params.data.id), eq(customersTable.isDeleted, false)));
 
-  if (!customer || customer.isDeleted) {
+  if (!customer) {
     res.status(404).json({ error: "Customer not found" });
     return;
   }
@@ -75,7 +67,7 @@ router.get("/customers/:id", requireAuth, async (req, res): Promise<void> => {
   const recentOrders = await db
     .select()
     .from(ordersTable)
-    .where(eq(ordersTable.customerId, params.data.id))
+    .where(and(eq(ordersTable.customerId, params.data.id), eq(ordersTable.isDeleted, false)))
     .orderBy(desc(ordersTable.createdAt))
     .limit(10);
 
@@ -96,7 +88,7 @@ router.patch("/customers/:id", requireAuth, async (req, res): Promise<void> => {
   const [customer] = await db
     .update(customersTable)
     .set(parsed.data)
-    .where(eq(customersTable.id, params.data.id))
+    .where(and(eq(customersTable.id, params.data.id), eq(customersTable.isDeleted, false)))
     .returning();
   if (!customer) {
     res.status(404).json({ error: "Customer not found" });
@@ -114,7 +106,7 @@ router.delete("/customers/:id", requireAuth, async (req, res): Promise<void> => 
   const [customer] = await db
     .update(customersTable)
     .set({ isDeleted: true })
-    .where(eq(customersTable.id, params.data.id))
+    .where(and(eq(customersTable.id, params.data.id), eq(customersTable.isDeleted, false)))
     .returning();
   if (!customer) {
     res.status(404).json({ error: "Customer not found" });

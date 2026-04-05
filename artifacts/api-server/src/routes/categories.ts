@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
 import { db, categoriesTable } from "@workspace/db";
 import {
   CreateCategoryBody,
@@ -45,7 +45,7 @@ router.patch("/categories/reorder", requireAuth, async (req, res): Promise<void>
     await db
       .update(categoriesTable)
       .set({ sortOrder: item.sortOrder })
-      .where(eq(categoriesTable.id, item.id));
+      .where(and(eq(categoriesTable.id, item.id), eq(categoriesTable.isDeleted, false)));
   }
   res.json({ message: "Reordered successfully" });
 });
@@ -59,9 +59,9 @@ router.get("/categories/:id", requireAuth, async (req, res): Promise<void> => {
   const [category] = await db
     .select()
     .from(categoriesTable)
-    .where(eq(categoriesTable.id, params.data.id));
+    .where(and(eq(categoriesTable.id, params.data.id), eq(categoriesTable.isDeleted, false)));
 
-  if (!category || category.isDeleted) {
+  if (!category) {
     res.status(404).json({ error: "Category not found" });
     return;
   }
@@ -82,7 +82,7 @@ router.patch("/categories/:id", requireAuth, async (req, res): Promise<void> => 
   const [category] = await db
     .update(categoriesTable)
     .set(parsed.data)
-    .where(eq(categoriesTable.id, params.data.id))
+    .where(and(eq(categoriesTable.id, params.data.id), eq(categoriesTable.isDeleted, false)))
     .returning();
 
   if (!category) {
@@ -101,7 +101,7 @@ router.delete("/categories/:id", requireAuth, async (req, res): Promise<void> =>
   const [category] = await db
     .update(categoriesTable)
     .set({ isDeleted: true })
-    .where(eq(categoriesTable.id, params.data.id))
+    .where(and(eq(categoriesTable.id, params.data.id), eq(categoriesTable.isDeleted, false)))
     .returning();
 
   if (!category) {

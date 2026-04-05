@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, recipesTable, recipeIngredientsTable, menuItemsTable, ingredientsTable } from "@workspace/db";
 import {
   GetRecipeByMenuItemParams,
@@ -10,7 +10,13 @@ import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-async function buildRecipeDetail(recipe: { id: number; menuItemId: number; createdAt: Date; updatedAt: Date }) {
+async function buildRecipeDetail(recipe: {
+  id: number;
+  menuItemId: number;
+  isDeleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
   const [menuItem] = await db
     .select()
     .from(menuItemsTable)
@@ -19,7 +25,7 @@ async function buildRecipeDetail(recipe: { id: number; menuItemId: number; creat
   const recipeIngredients = await db
     .select()
     .from(recipeIngredientsTable)
-    .where(eq(recipeIngredientsTable.recipeId, recipe.id));
+    .where(and(eq(recipeIngredientsTable.recipeId, recipe.id), eq(recipeIngredientsTable.isDeleted, false)));
 
   const ingredients = await Promise.all(
     recipeIngredients.map(async (ri) => {
@@ -32,6 +38,7 @@ async function buildRecipeDetail(recipe: { id: number; menuItemId: number; creat
         recipeId: ri.recipeId,
         ingredientId: ri.ingredientId,
         ingredientName: ing?.name ?? "",
+        ingredientNameUr: ing?.nameUr ?? "",
         unit: ing?.unit ?? "",
         quantity: ri.quantity,
       };
@@ -42,6 +49,7 @@ async function buildRecipeDetail(recipe: { id: number; menuItemId: number; creat
     id: recipe.id,
     menuItemId: recipe.menuItemId,
     menuItemName: menuItem?.name ?? "",
+    menuItemNameUr: menuItem?.nameUr ?? "",
     ingredients,
     createdAt: recipe.createdAt,
     updatedAt: recipe.updatedAt,
@@ -67,9 +75,9 @@ router.get("/recipes/menu-item/:menuItemId", requireAuth, async (req, res): Prom
   const [recipe] = await db
     .select()
     .from(recipesTable)
-    .where(eq(recipesTable.menuItemId, params.data.menuItemId));
+    .where(and(eq(recipesTable.menuItemId, params.data.menuItemId), eq(recipesTable.isDeleted, false)));
 
-  if (!recipe || recipe.isDeleted) {
+  if (!recipe) {
     res.status(404).json({ error: "Recipe not found" });
     return;
   }
@@ -88,46 +96,52 @@ router.put("/recipes/menu-item/:menuItemId", requireAuth, async (req, res): Prom
     return;
   }
 
-  const [existing] = await db
-    .select()
-    .from(recipesTable)
-    .where(eq(recipesTable.menuItemId, params.data.menuItemId));
+  const result = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(recipesTable)
+      .where(eq(recipesTable.menuItemId, params.data.menuItemId));
 
-  let recipeId: number;
+    let recipeId: number;
 
-  if (existing) {
-    await db
-      .update(recipesTable)
-      .set({ isDeleted: false })
-      .where(eq(recipesTable.id, existing.id));
-    recipeId = existing.id;
-    await db
-      .delete(recipeIngredientsTable)
-      .where(eq(recipeIngredientsTable.recipeId, recipeId));
-  } else {
-    const [newRecipe] = await db
-      .insert(recipesTable)
-      .values({ menuItemId: params.data.menuItemId })
-      .returning();
-    recipeId = newRecipe.id;
-  }
+    if (existing) {
+      await tx
+        .update(recipesTable)
+        .set({ isDeleted: false })
+        .where(eq(recipesTable.id, existing.id));
+      recipeId = existing.id;
 
-  if (parsed.data.ingredients.length > 0) {
-    await db.insert(recipeIngredientsTable).values(
-      parsed.data.ingredients.map((ri) => ({
-        recipeId,
-        ingredientId: ri.ingredientId,
-        quantity: ri.quantity,
-      }))
-    );
-  }
+      await tx
+        .update(recipeIngredientsTable)
+        .set({ isDeleted: true })
+        .where(and(eq(recipeIngredientsTable.recipeId, recipeId), eq(recipeIngredientsTable.isDeleted, false)));
+    } else {
+      const [newRecipe] = await tx
+        .insert(recipesTable)
+        .values({ menuItemId: params.data.menuItemId })
+        .returning();
+      recipeId = newRecipe.id;
+    }
 
-  const [finalRecipe] = await db
-    .select()
-    .from(recipesTable)
-    .where(eq(recipesTable.id, recipeId));
+    if (parsed.data.ingredients.length > 0) {
+      await tx.insert(recipeIngredientsTable).values(
+        parsed.data.ingredients.map((ri) => ({
+          recipeId,
+          ingredientId: ri.ingredientId,
+          quantity: ri.quantity,
+        }))
+      );
+    }
 
-  res.json(await buildRecipeDetail(finalRecipe));
+    const [finalRecipe] = await tx
+      .select()
+      .from(recipesTable)
+      .where(eq(recipesTable.id, recipeId));
+
+    return finalRecipe;
+  });
+
+  res.json(await buildRecipeDetail(result));
 });
 
 export default router;

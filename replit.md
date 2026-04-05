@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+MUFAZ Kitchen POS — cloud kitchen point-of-sale system. Bilingual (English/Urdu) with RTL support. pnpm workspace monorepo using TypeScript.
 
 ## Stack
 
@@ -15,13 +15,47 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **Frontend**: React + Vite + Tailwind CSS v4 + shadcn/ui
+- **Charts**: Recharts
+- **Forms**: react-hook-form + zod
+- **Routing**: wouter
+- **State**: TanStack Query
+
+## Artifacts
+
+### API Server (`artifacts/api-server`)
+Express/PostgreSQL backend. 14-table schema, 50+ endpoints, JWT auth (owner/staff roles).
+- Dev: `pnpm --filter @workspace/api-server run dev`
+- Auth: POST /api/auth/login → `{ token }`, stored in `localStorage["mufaz_token"]`
+- Dev credentials: `owner@mufaz.com / owner123`, `staff@mufaz.com / staff123`
+
+### Web Portal (`artifacts/web-portal`, previewPath: `/`)
+Full-featured POS dashboard.
+- **Pages**: Dashboard, Orders, New Order, Menu (categories + items), Customers, Inventory (ingredients + logs), Recipes, Scheduled Orders, Bills, Reports, Settings
+- **Auth guard**: Layout component redirects to /login on 401
+- **Role-based nav**: Bills/Reports/Settings hidden for `staff` role
+- **i18n**: English/Urdu toggle, RTL support via `src/lib/i18n.tsx`
+- **Theme**: Terracotta/rust primary (`--primary: 15 76% 48%`), warm cream background, dark mode support
+- **Font**: Noto Nastaliq Urdu for Urdu script
 
 ## Key Commands
 
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks from OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
 
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+## Design Decisions
+
+- JWT stored in `localStorage["mufaz_token"]`; `setAuthTokenGetter` called at app startup in App.tsx
+- All API hooks from `@workspace/api-client-react` (never relative paths)
+- Query hooks: `useListXxx`, `useGetXxx` (use `query: { enabled: !!id, queryKey: [...] }` for conditional fetching)
+- Mutation hooks: `useCreateXxx`, `useUpdateXxx`, `useDeleteXxx` — mutate({ data: ... }) or mutate({ id, data: ... })
+- Bill generation: `useGenerateBill` (not useCreateBill)
+- Payment methods: cash, jazzcash, easypaisa
+- Order types: dine-in, takeaway, delivery
+- Soft deletes on all tables
+
+## Remaining Tasks
+
+- Task #3: Mobile App (Expo) — NOT YET STARTED
