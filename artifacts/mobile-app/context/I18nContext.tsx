@@ -1,0 +1,370 @@
+import React, { createContext, useContext, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { I18nManager } from "react-native";
+
+export type Language = "en" | "ur";
+
+const LANG_KEY = "mufaz_lang";
+
+const translations = {
+  en: {
+    dashboard: "Dashboard",
+    orders: "Orders",
+    newOrder: "New Order",
+    menu: "Menu",
+    customers: "Customers",
+    inventory: "Inventory",
+    bills: "Bills",
+    schedule: "Schedule",
+    reports: "Reports",
+    settings: "Settings",
+    profile: "Profile",
+    signIn: "Sign In",
+    signOut: "Sign Out",
+    email: "Email",
+    password: "Password",
+    loading: "Loading...",
+    error: "Something went wrong",
+    retry: "Retry",
+    noData: "No data found",
+    save: "Save",
+    cancel: "Cancel",
+    delete: "Delete",
+    edit: "Edit",
+    add: "Add",
+    search: "Search",
+    refresh: "Refresh",
+    confirm: "Confirm",
+    back: "Back",
+    viewAll: "View all",
+    total: "Total",
+    today: "Today",
+    todayOrders: "Today's Orders",
+    todayRevenue: "Today's Revenue",
+    activeOrders: "Active Orders",
+    pendingOrders: "Pending Orders",
+    lowStock: "Low Stock",
+    totalCustomers: "Total Customers",
+    status: {
+      pending: "Pending",
+      confirmed: "Confirmed",
+      preparing: "Preparing",
+      ready: "Ready",
+      delivered: "Delivered",
+      cancelled: "Cancelled",
+      completed: "Completed",
+    },
+    orderStatus: {
+      moveTo: "Move to",
+      advance: "Advance Status",
+    },
+    order: {
+      id: "Order",
+      walkin: "Walk-in",
+      paymentMethod: "Payment",
+      customer: "Customer",
+      items: "Items",
+      notes: "Notes",
+      placeOrder: "Place Order",
+      reviewOrder: "Review Order",
+      addItems: "Add Items",
+      cart: "Cart",
+      emptyCart: "Your cart is empty",
+      addItemsToCart: "Add items from the menu",
+    },
+    payment: {
+      cash: "Cash",
+      jazzcash: "JazzCash",
+      easypaisa: "EasyPaisa",
+    },
+    menu: {
+      available: "Available",
+      unavailable: "Unavailable",
+      toggleAvailability: "Toggle",
+      price: "Price",
+      category: "Category",
+      addItem: "Add Item",
+      editItem: "Edit Item",
+      name: "Item Name",
+      nameUr: "Name (Urdu)",
+      description: "Description",
+    },
+    customer: {
+      name: "Customer Name",
+      phone: "Phone",
+      address: "Address",
+      totalOrders: "Total Orders",
+      totalSpent: "Total Spent",
+      addCustomer: "Add Customer",
+      editCustomer: "Edit Customer",
+      recentOrders: "Recent Orders",
+      lifetimeStats: "Lifetime Stats",
+    },
+    inventory: {
+      stockLevel: "Stock Level",
+      unit: "Unit",
+      lowStockThreshold: "Low Stock Threshold",
+      adjustStock: "Adjust Stock",
+      adjustment: "Adjustment",
+      reason: "Reason",
+      addIngredient: "Add Ingredient",
+      editIngredient: "Edit Ingredient",
+      recipe: "Recipe",
+      recipes: "Recipes",
+      ingredients: "Ingredients",
+      quantity: "Quantity",
+    },
+    billing: {
+      generateBill: "Generate Bill",
+      billFor: "Bill for Order",
+      paymentMethod: "Payment Method",
+      notes: "Notes",
+      items: "Bill Items",
+      subtotal: "Subtotal",
+      total: "Total",
+      billHistory: "Bill History",
+      viewBill: "View Bill",
+    },
+    schedule: {
+      scheduledOrders: "Scheduled Orders",
+      scheduleOrder: "Schedule Order",
+      date: "Date",
+      time: "Time",
+      dailyCapacity: "Daily Capacity",
+      convertToOrder: "Convert to Order",
+      capacity: "Capacity",
+      available: "Available",
+      current: "Current",
+    },
+    reports: {
+      dailyRevenue: "Daily Revenue",
+      topItems: "Top Items",
+      revenueByPayment: "Revenue by Payment",
+      dateFrom: "From",
+      dateTo: "To",
+      orders: "Orders",
+      revenue: "Revenue",
+      quantity: "Qty",
+    },
+    settings: {
+      dailyCapacity: "Daily Capacity",
+      staff: "Staff Management",
+      addStaff: "Add Staff",
+      language: "Language",
+      english: "English",
+      urdu: "اردو",
+      role: {
+        owner: "Owner",
+        staff: "Staff",
+      },
+    },
+    validation: {
+      required: "This field is required",
+      invalidEmail: "Please enter a valid email",
+      minLength: "Too short",
+    },
+  },
+  ur: {
+    dashboard: "ڈیش بورڈ",
+    orders: "آرڈر",
+    newOrder: "نیا آرڈر",
+    menu: "مینو",
+    customers: "گاہک",
+    inventory: "انوینٹری",
+    bills: "بل",
+    schedule: "شیڈول",
+    reports: "رپورٹ",
+    settings: "ترتیبات",
+    profile: "پروفائل",
+    signIn: "سائن ان",
+    signOut: "سائن آؤٹ",
+    email: "ای میل",
+    password: "پاس ورڈ",
+    loading: "لوڈ ہو رہا ہے...",
+    error: "کچھ غلط ہو گیا",
+    retry: "دوبارہ کوشش کریں",
+    noData: "کوئی ڈیٹا نہیں ملا",
+    save: "محفوظ کریں",
+    cancel: "منسوخ",
+    delete: "حذف کریں",
+    edit: "ترمیم",
+    add: "شامل کریں",
+    search: "تلاش",
+    refresh: "تازہ کریں",
+    confirm: "تصدیق",
+    back: "واپس",
+    viewAll: "سب دیکھیں",
+    total: "کل",
+    today: "آج",
+    todayOrders: "آج کے آرڈر",
+    todayRevenue: "آج کی آمدنی",
+    activeOrders: "فعال آرڈر",
+    pendingOrders: "زیر التواء آرڈر",
+    lowStock: "کم اسٹاک",
+    totalCustomers: "کل گاہک",
+    status: {
+      pending: "زیر التواء",
+      confirmed: "تصدیق شدہ",
+      preparing: "تیاری",
+      ready: "تیار",
+      delivered: "ڈلیور",
+      cancelled: "منسوخ",
+      completed: "مکمل",
+    },
+    orderStatus: {
+      moveTo: "منتقل کریں",
+      advance: "حیثیت آگے بڑھائیں",
+    },
+    order: {
+      id: "آرڈر",
+      walkin: "واک ان",
+      paymentMethod: "ادائیگی",
+      customer: "گاہک",
+      items: "آئٹم",
+      notes: "نوٹس",
+      placeOrder: "آرڈر دیں",
+      reviewOrder: "آرڈر دیکھیں",
+      addItems: "آئٹم شامل کریں",
+      cart: "کارٹ",
+      emptyCart: "کارٹ خالی ہے",
+      addItemsToCart: "مینو سے آئٹم شامل کریں",
+    },
+    payment: {
+      cash: "نقد",
+      jazzcash: "جاز کیش",
+      easypaisa: "ایزی پیسہ",
+    },
+    menu: {
+      available: "دستیاب",
+      unavailable: "دستیاب نہیں",
+      toggleAvailability: "تبدیل",
+      price: "قیمت",
+      category: "زمرہ",
+      addItem: "آئٹم شامل کریں",
+      editItem: "آئٹم ترمیم کریں",
+      name: "آئٹم کا نام",
+      nameUr: "نام (اردو)",
+      description: "تفصیل",
+    },
+    customer: {
+      name: "گاہک کا نام",
+      phone: "فون",
+      address: "پتہ",
+      totalOrders: "کل آرڈر",
+      totalSpent: "کل خرچ",
+      addCustomer: "گاہک شامل کریں",
+      editCustomer: "گاہک ترمیم کریں",
+      recentOrders: "حالیہ آرڈر",
+      lifetimeStats: "مجموعی اعداد",
+    },
+    inventory: {
+      stockLevel: "اسٹاک سطح",
+      unit: "اکائی",
+      lowStockThreshold: "کم اسٹاک حد",
+      adjustStock: "اسٹاک ایڈجسٹ",
+      adjustment: "ایڈجسٹمنٹ",
+      reason: "وجہ",
+      addIngredient: "اجزا شامل کریں",
+      editIngredient: "اجزا ترمیم کریں",
+      recipe: "ترکیب",
+      recipes: "ترکیبیں",
+      ingredients: "اجزا",
+      quantity: "مقدار",
+    },
+    billing: {
+      generateBill: "بل بنائیں",
+      billFor: "آرڈر کا بل",
+      paymentMethod: "ادائیگی کا طریقہ",
+      notes: "نوٹس",
+      items: "بل آئٹم",
+      subtotal: "ذیلی کل",
+      total: "کل",
+      billHistory: "بل تاریخ",
+      viewBill: "بل دیکھیں",
+    },
+    schedule: {
+      scheduledOrders: "شیڈول آرڈر",
+      scheduleOrder: "آرڈر شیڈول کریں",
+      date: "تاریخ",
+      time: "وقت",
+      dailyCapacity: "روزانہ صلاحیت",
+      convertToOrder: "آرڈر میں تبدیل",
+      capacity: "صلاحیت",
+      available: "دستیاب",
+      current: "موجودہ",
+    },
+    reports: {
+      dailyRevenue: "روزانہ آمدنی",
+      topItems: "اعلی آئٹم",
+      revenueByPayment: "ادائیگی سے آمدنی",
+      dateFrom: "سے",
+      dateTo: "تک",
+      orders: "آرڈر",
+      revenue: "آمدنی",
+      quantity: "مقدار",
+    },
+    settings: {
+      dailyCapacity: "روزانہ صلاحیت",
+      staff: "عملہ انتظام",
+      addStaff: "عملہ شامل کریں",
+      language: "زبان",
+      english: "English",
+      urdu: "اردو",
+      role: {
+        owner: "مالک",
+        staff: "عملہ",
+      },
+    },
+    validation: {
+      required: "یہ فیلڈ ضروری ہے",
+      invalidEmail: "درست ای میل درج کریں",
+      minLength: "بہت مختصر",
+    },
+  },
+};
+
+export type Translations = typeof translations.en;
+
+type I18nContextType = {
+  lang: Language;
+  t: Translations;
+  setLang: (lang: Language) => Promise<void>;
+  isRtl: boolean;
+};
+
+const I18nContext = createContext<I18nContextType>({
+  lang: "en",
+  t: translations.en,
+  setLang: async () => {},
+  isRtl: false,
+});
+
+export function I18nProvider({ children }: { children: React.ReactNode }) {
+  const [lang, setLangState] = useState<Language>("en");
+
+  useEffect(() => {
+    AsyncStorage.getItem(LANG_KEY).then((saved) => {
+      if (saved === "en" || saved === "ur") {
+        setLangState(saved);
+      }
+    });
+  }, []);
+
+  const setLang = async (newLang: Language) => {
+    await AsyncStorage.setItem(LANG_KEY, newLang);
+    setLangState(newLang);
+  };
+
+  const isRtl = lang === "ur";
+  const t = translations[lang] as Translations;
+
+  return (
+    <I18nContext.Provider value={{ lang, t, setLang, isRtl }}>
+      {children}
+    </I18nContext.Provider>
+  );
+}
+
+export function useI18n() {
+  return useContext(I18nContext);
+}

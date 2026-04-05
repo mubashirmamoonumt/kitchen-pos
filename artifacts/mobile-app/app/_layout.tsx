@@ -15,6 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { I18nProvider } from "@/context/I18nContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 
 SplashScreen.preventAutoHideAsync();
@@ -51,6 +52,18 @@ function RootLayoutNav() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="customer/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="customer/new" options={{ headerShown: false }} />
+        <Stack.Screen name="customer/edit/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="ingredient/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="ingredient/new" options={{ headerShown: false }} />
+        <Stack.Screen name="ingredient/edit/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="recipe/[menuItemId]" options={{ headerShown: false }} />
+        <Stack.Screen name="order/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="bill/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="schedule/new" options={{ headerShown: false }} />
+        <Stack.Screen name="menu-item/new" options={{ headerShown: false }} />
+        <Stack.Screen name="menu-item/edit/[id]" options={{ headerShown: false }} />
       </Stack>
     </AuthGuard>
   );
@@ -79,7 +92,9 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <AuthProvider>
-                <RootLayoutNav />
+                <I18nProvider>
+                  <RootLayoutNav />
+                </I18nProvider>
               </AuthProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

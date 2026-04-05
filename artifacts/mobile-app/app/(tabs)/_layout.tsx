@@ -8,29 +8,56 @@ import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { useI18n } from "@/context/I18nContext";
 
 function NativeTabLayout() {
+  const { t } = useI18n();
+
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Dashboard</Label>
+        <Label>{t.dashboard}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="orders">
         <Icon sf={{ default: "list.clipboard", selected: "list.clipboard.fill" }} />
-        <Label>Orders</Label>
+        <Label>{t.orders}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="new-order">
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
-        <Label>New Order</Label>
+        <Label>{t.newOrder}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="menu">
         <Icon sf={{ default: "fork.knife", selected: "fork.knife" }} />
-        <Label>Menu</Label>
+        <Label>{t.menu}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="customers">
+        <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
+        <Label>{t.customers}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="inventory">
+        <Icon sf={{ default: "cube.box", selected: "cube.box.fill" }} />
+        <Label>{t.inventory}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="bills">
+        <Icon sf={{ default: "doc.text", selected: "doc.text.fill" }} />
+        <Label>{t.bills}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="schedule">
+        <Icon sf={{ default: "calendar", selected: "calendar.fill" }} />
+        <Label>{t.schedule}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="reports">
+        <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
+        <Label>{t.reports}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
+        <Label>{t.settings}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profile</Label>
+        <Label>{t.profile}</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -39,6 +66,7 @@ function NativeTabLayout() {
 function ClassicTabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
+
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
@@ -116,6 +144,78 @@ function ClassicTabLayout() {
               <SymbolView name="fork.knife" tintColor={color} size={24} />
             ) : (
               <Ionicons name="restaurant-outline" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="customers"
+        options={{
+          title: "Customers",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="person.2" tintColor={color} size={24} />
+            ) : (
+              <Ionicons name="people-outline" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="inventory"
+        options={{
+          title: "Inventory",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="cube.box" tintColor={color} size={24} />
+            ) : (
+              <Ionicons name="cube-outline" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="bills"
+        options={{
+          title: "Bills",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="doc.text" tintColor={color} size={24} />
+            ) : (
+              <Ionicons name="document-text-outline" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          title: "Schedule",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="calendar" tintColor={color} size={24} />
+            ) : (
+              <Ionicons name="calendar-outline" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="reports"
+        options={{
+          title: "Reports",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="chart.bar" tintColor={color} size={24} />
+            ) : (
+              <Ionicons name="bar-chart-outline" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="gearshape" tintColor={color} size={24} />
+            ) : (
+              <Ionicons name="settings-outline" size={22} color={color} />
             ),
         }}
       />

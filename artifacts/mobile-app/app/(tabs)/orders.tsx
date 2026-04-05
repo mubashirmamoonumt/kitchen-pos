@@ -13,10 +13,12 @@ import {
 } from "react-native";
 import { useListOrders, useUpdateOrderStatus, getListOrdersQueryKey } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useI18n } from "@/context/I18nContext";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
+import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 
 const STATUS_FILTERS = ["all", "pending", "confirmed", "preparing", "ready", "delivered", "cancelled"] as const;
@@ -34,6 +36,7 @@ const STATUS_TRANSITIONS: Record<string, string | null> = {
 export default function OrdersScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t, isRtl } = useI18n();
   const qc = useQueryClient();
 
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
@@ -61,10 +64,14 @@ export default function OrdersScreen() {
   const renderOrder = ({ item }: { item: (typeof filtered)[number] }) => {
     const next = STATUS_TRANSITIONS[item.status];
     return (
-      <View style={[styles.orderCard, { backgroundColor: colors.card, borderColor: colors.border }]} testID={`card-order-${item.id}`}>
+      <TouchableOpacity
+        style={[styles.orderCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        testID={`card-order-${item.id}`}
+        onPress={() => router.push({ pathname: "/order/[id]", params: { id: item.id } })}
+      >
         <View style={styles.orderHeader}>
           <View style={styles.orderMeta}>
-            <Text style={[styles.orderId, { color: colors.foreground }]}>Order #{item.id}</Text>
+            <Text style={[styles.orderId, { color: colors.foreground }]}>{t.order.id} #{item.id}</Text>
             <StatusBadge status={item.status} size="sm" />
           </View>
           <Text style={[styles.orderAmount, { color: colors.foreground }]}>
@@ -72,7 +79,7 @@ export default function OrdersScreen() {
           </Text>
         </View>
         <Text style={[styles.orderSub, { color: colors.mutedForeground }]}>
-          {item.customerName || "Walk-in"} · {item.paymentMethod ?? "cash"}
+          {item.customerName || t.order.walkin} · {item.paymentMethod ?? "cash"}
         </Text>
         <Text style={[styles.orderTime, { color: colors.mutedForeground }]}>
           {new Date(item.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -80,16 +87,19 @@ export default function OrdersScreen() {
         {next && (
           <TouchableOpacity
             style={[styles.advanceBtn, { backgroundColor: colors.primary + "18", borderColor: colors.primary + "40" }]}
-            onPress={() => handleAdvance(item.id, next)}
+            onPress={(e) => {
+              e.stopPropagation && e.stopPropagation();
+              handleAdvance(item.id, next);
+            }}
             testID={`button-advance-${item.id}`}
           >
             <Ionicons name="arrow-forward-circle-outline" size={16} color={colors.primary} />
             <Text style={[styles.advanceBtnText, { color: colors.primary }]}>
-              Move to {next.charAt(0).toUpperCase() + next.slice(1)}
+              {t.orderStatus.moveTo} {next.charAt(0).toUpperCase() + next.slice(1)}
             </Text>
           </TouchableOpacity>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -105,12 +115,12 @@ export default function OrdersScreen() {
           },
         ]}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>Orders</Text>
-        <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.title, { color: colors.foreground }]}>{t.orders}</Text>
+        <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: isRtl ? "row-reverse" : "row" }]}>
           <Ionicons name="search-outline" size={16} color={colors.mutedForeground} />
           <TextInput
-            style={[styles.searchInput, { color: colors.foreground }]}
-            placeholder="Search orders..."
+            style={[styles.searchInput, { color: colors.foreground, textAlign: isRtl ? "right" : "left" }]}
+            placeholder={t.search}
             placeholderTextColor={colors.mutedForeground}
             value={search}
             onChangeText={setSearch}
@@ -146,7 +156,7 @@ export default function OrdersScreen() {
                   { color: filterStatus === s ? colors.primaryForeground : colors.mutedForeground },
                 ]}
               >
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === "all" ? "All" : t.status[s as keyof typeof t.status]}
               </Text>
             </TouchableOpacity>
           )}
@@ -160,7 +170,7 @@ export default function OrdersScreen() {
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="receipt-outline" size={48} color={colors.mutedForeground} />
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No orders found</Text>
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.noData}</Text>
         </View>
       ) : (
         <FlatList
