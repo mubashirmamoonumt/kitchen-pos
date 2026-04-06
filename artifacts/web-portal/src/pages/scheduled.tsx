@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -259,7 +260,7 @@ export default function Scheduled() {
               )} />
 
               <div className="space-y-2">
-                <FormLabel>{t("Items")}</FormLabel>
+                <Label>{t("Items")}</Label>
                 <div className="flex gap-2">
                   <Select onValueChange={setSelectedMenuItemId} value={selectedMenuItemId}>
                     <SelectTrigger className="flex-1" data-testid="select-scheduled-menu-item">
