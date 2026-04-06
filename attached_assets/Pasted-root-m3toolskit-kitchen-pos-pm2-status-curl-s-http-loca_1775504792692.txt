@@ -1,0 +1,54 @@
+root@m3toolskit:~/kitchen-pos# pm2 status
+curl -s http://localhost:3000/api/auth/me
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 4  │ mufaz-api          │ fork     │ 0    │ online    │ 0%       │ 94.9mb   │
+│ 0  │ whatsapp-backend   │ fork     │ 3    │ online    │ 0%       │ 129.8mb  │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+{"error":"Unauthorized"}root@m3cat > /etc/nginx/sites-available/posapi.m3toolskit.shop << 'EOF'm3toolskit.shop << 'EOF'
+server {
+    listen 80;
+    server_name posapi.m3toolskit.shop;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+EOF
+
+ln -sf /etc/nginx/sites-available/posapi.m3toolskit.shop /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+root@m3toolskit:~/kitchen-pos# apt install -y certbot python3-certbot-nginx
+certbot --nginx -d posapi.m3toolskit.shop --non-interactive --agree-tos -m your@email.com
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+certbot is already the newest version (2.1.0-4).
+python3-certbot-nginx is already the newest version (2.1.0-2).
+The following packages were automatically installed and are no longer required:
+  criu libnet1 libnl-3-200 libprotobuf32 python3-protobuf tini
+Use 'apt autoremove' to remove them.
+0 upgraded, 0 newly installed, 0 to remove and 1 not upgraded.
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Certificate not yet due for renewal
+Deploying certificate
+Successfully deployed certificate for posapi.m3toolskit.shop to /etc/nginx/sites-enabled/posapi.m3toolskit.shop
+Congratulations! You have successfully enabled HTTPS on https://posapi.m3toolskit.shop
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+If you like Certbot, please consider supporting our work by:
+ * Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+ * Donating to EFF:                    https://eff.org/donate-le
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+root@m3toolskit:~/kitchen-pos# curl https://posapi.m3toolskit.shop/api/auth/me
+{"error":"Unauthorized"}root@m3toolskit:~/kitchen-pos#
