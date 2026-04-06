@@ -56,28 +56,27 @@ function OrderDetail({ orderId }: { orderId: number }) {
       <div className="grid grid-cols-2 gap-2 text-sm">
         <div><span className="text-muted-foreground">{t("Customer")}:</span> <span className="font-medium">{o.customerName || "Walk-in"}</span></div>
         <div><span className="text-muted-foreground">{t("Status")}:</span> <span className="font-medium capitalize">{t(o.status.charAt(0).toUpperCase() + o.status.slice(1))}</span></div>
-        <div><span className="text-muted-foreground">{t("Order Type")}:</span> <span className="font-medium capitalize">{(o as any).orderType}</span></div>
         <div><span className="text-muted-foreground">{t("Payment Method")}:</span> <span className="font-medium capitalize">{o.paymentMethod}</span></div>
       </div>
-      {(o as any).notes && (
+      {o.notes && (
         <div className="text-sm">
-          <span className="text-muted-foreground">{t("Notes")}:</span> <span>{(o as any).notes}</span>
+          <span className="text-muted-foreground">{t("Notes")}:</span> <span>{o.notes}</span>
         </div>
       )}
       <Separator />
       <div className="space-y-2">
-        {(o as any).items?.map((item: any) => (
+        {o.items?.map((item) => (
           <div key={item.id} className="flex justify-between text-sm" data-testid={`row-order-item-${item.id}`}>
-            <span>{item.itemName} × {item.quantity}</span>
-            <span className="font-medium">PKR {Number(parseFloat(item.itemPrice) * item.quantity).toLocaleString()}</span>
+            <span>{item.itemName} × {item.quantity} <span className="text-muted-foreground text-xs">{item.unit}</span></span>
+            <span className="font-medium">PKR {Number(parseFloat(item.subtotal)).toLocaleString()}</span>
           </div>
         ))}
       </div>
       <Separator />
-      {parseFloat((o as any).discountAmount ?? "0") > 0 && (
+      {parseFloat(o.discountAmount ?? "0") > 0 && (
         <div className="flex justify-between text-sm text-green-600">
           <span>{t("Discount")}</span>
-          <span>-PKR {Number((o as any).discountAmount).toLocaleString()}</span>
+          <span>-PKR {Number(o.discountAmount).toLocaleString()}</span>
         </div>
       )}
       <div className="flex justify-between font-semibold">
@@ -93,16 +92,6 @@ function StatusDropdown({ orderId, currentStatus }: { orderId: number; currentSt
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateStatus = useUpdateOrderStatus();
-
-  const isTerminal = currentStatus === "delivered" || currentStatus === "cancelled";
-
-  if (isTerminal) {
-    return (
-      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium capitalize ${STATUS_COLORS[currentStatus] ?? ""}`}>
-        {t(currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1))}
-      </span>
-    );
-  }
 
   const handleChange = (newStatus: string) => {
     if (newStatus === currentStatus) return;

@@ -33,7 +33,12 @@ router.get("/menu-items", requireAuth, async (req, res): Promise<void> => {
     .select()
     .from(menuItemsTable)
     .where(and(...conditions));
-  res.json(items);
+
+  const isOwner = req.user?.role === "owner";
+  const sanitized = isOwner
+    ? items
+    : items.map(({ internalCost: _ic, ...rest }) => rest);
+  res.json(sanitized);
 });
 
 router.post("/menu-items", requireAuth, async (req, res): Promise<void> => {
@@ -58,6 +63,12 @@ router.get("/menu-items/:id", requireAuth, async (req, res): Promise<void> => {
     .where(and(eq(menuItemsTable.id, params.data.id), eq(menuItemsTable.isDeleted, false)));
   if (!item) {
     res.status(404).json({ error: "Menu item not found" });
+    return;
+  }
+  const isOwner = req.user?.role === "owner";
+  if (!isOwner) {
+    const { internalCost: _ic, ...rest } = item;
+    res.json(rest);
     return;
   }
   res.json(item);

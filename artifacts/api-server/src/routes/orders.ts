@@ -329,11 +329,9 @@ router.patch("/orders/:id/status", requireAuth, async (req, res): Promise<void> 
     return;
   }
 
-  const terminal = ["delivered", "cancelled"];
-  if (terminal.includes(existing.status)) {
-    res.status(422).json({
-      error: `Order is already ${existing.status} and cannot be changed.`,
-    });
+  const validStatuses = ["pending", "confirmed", "preparing", "ready", "delivered", "cancelled"];
+  if (!validStatuses.includes(parsed.data.status)) {
+    res.status(422).json({ error: `Invalid status '${parsed.data.status}'.` });
     return;
   }
 

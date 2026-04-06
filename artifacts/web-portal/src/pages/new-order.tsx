@@ -45,6 +45,7 @@ interface CartItem {
   quantity: number;
   unit: string;
   defaultDiscountPct: string;
+  itemDiscountPct: string;
 }
 
 export default function NewOrder() {
@@ -77,6 +78,7 @@ export default function NewOrder() {
       if (existing) {
         return prev.map((c) => c.menuItemId === item.id ? { ...c, quantity: c.quantity + 1 } : c);
       }
+      const defaultPct = item.defaultDiscountPct ?? "0";
       return [...prev, {
         menuItemId: item.id,
         name: item.name,
@@ -84,9 +86,14 @@ export default function NewOrder() {
         price: item.price,
         quantity: 1,
         unit: item.unit ?? "qty",
-        defaultDiscountPct: item.defaultDiscountPct ?? "0",
+        defaultDiscountPct: defaultPct,
+        itemDiscountPct: defaultPct,
       }];
     });
+  };
+
+  const updateItemDiscount = (menuItemId: number, pct: string) => {
+    setCart((prev) => prev.map((c) => c.menuItemId === menuItemId ? { ...c, itemDiscountPct: pct } : c));
   };
 
   const updateQty = (menuItemId: number, delta: number) => {
@@ -96,7 +103,11 @@ export default function NewOrder() {
     });
   };
 
-  const subtotal = cart.reduce((sum, c) => sum + parseFloat(c.price) * c.quantity, 0);
+  const subtotal = cart.reduce((sum, c) => {
+    const gross = parseFloat(c.price) * c.quantity;
+    const discPct = parseFloat(c.itemDiscountPct || "0");
+    return sum + gross - (gross * discPct) / 100;
+  }, 0);
 
   let orderDiscountAmt = 0;
   if (discountValue && parseFloat(discountValue) > 0) {
@@ -119,16 +130,19 @@ export default function NewOrder() {
           ...values,
           discountAmount: orderDiscountAmt > 0 ? orderDiscountAmt.toFixed(2) : undefined,
           discountType: orderDiscountAmt > 0 ? discountType : undefined,
-          items: cart.map((c) => ({
-            menuItemId: c.menuItemId,
-            quantity: c.quantity,
-            itemName: c.name,
-            itemPrice: c.price,
-            unit: c.unit,
-            discountAmount: parseFloat(c.defaultDiscountPct) > 0
-              ? ((parseFloat(c.price) * c.quantity * parseFloat(c.defaultDiscountPct)) / 100).toFixed(2)
-              : undefined,
-          })),
+          items: cart.map((c) => {
+            const gross = parseFloat(c.price) * c.quantity;
+            const pct = parseFloat(c.itemDiscountPct || "0");
+            const itemDisc = pct > 0 ? (gross * pct) / 100 : 0;
+            return {
+              menuItemId: c.menuItemId,
+              quantity: c.quantity,
+              itemName: c.name,
+              itemPrice: c.price,
+              unit: c.unit,
+              discountAmount: itemDisc > 0 ? itemDisc.toFixed(2) : undefined,
+            };
+          }),
         },
       },
       {
@@ -236,12 +250,12 @@ export default function NewOrder() {
               ) : (
                 <>
                   {cart.map((item) => {
-                    const itemSubtotal = parseFloat(item.price) * item.quantity;
-                    const itemDiscount = parseFloat(item.defaultDiscountPct) > 0
-                      ? (itemSubtotal * parseFloat(item.defaultDiscountPct)) / 100
-                      : 0;
+                    const gross = parseFloat(item.price) * item.quantity;
+                    const pct = parseFloat(item.itemDiscountPct || "0");
+                    const itemDiscount = pct > 0 ? (gross * pct) / 100 : 0;
+                    const lineTotal = gross - itemDiscount;
                     return (
-                      <div key={item.menuItemId} className="space-y-0.5" data-testid={`cart-item-${item.menuItemId}`}>
+                      <div key={item.menuItemId} className="space-y-1 pb-1 border-b last:border-0" data-testid={`cart-item-${item.menuItemId}`}>
                         <div className="flex items-center gap-2">
                           <span className="text-sm flex-1 truncate">
                             {language === "ur" && item.nameUr ? item.nameUr : item.name}
@@ -257,17 +271,28 @@ export default function NewOrder() {
                             </Button>
                           </div>
                           <span className="text-sm font-medium w-20 text-right">
-                            PKR {(itemSubtotal - itemDiscount).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            PKR {lineTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                           </span>
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setCart(c => c.filter(x => x.menuItemId !== item.menuItemId))}>
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
-                        {itemDiscount > 0 && (
-                          <div className="flex justify-end">
-                            <span className="text-xs text-green-600">-{item.defaultDiscountPct}% = PKR {itemDiscount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1 pl-0.5">
+                          <span className="text-xs text-muted-foreground w-16">{t("Item disc")}%:</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={item.itemDiscountPct}
+                            onChange={(e) => updateItemDiscount(item.menuItemId, e.target.value)}
+                            className="h-5 text-xs w-16 px-1"
+                            data-testid={`input-item-discount-${item.menuItemId}`}
+                          />
+                          {itemDiscount > 0 && (
+                            <span className="text-xs text-green-600 ml-1">-PKR {itemDiscount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
