@@ -518,3 +518,38 @@ export type GetRevenueByPaymentReportParams = {
   dateFrom: string;
   dateTo: string;
 };
+
+export interface DiscountRule {
+  id: number;
+  name: string;
+  type: "event" | "threshold";
+  discountType: "pct" | "pkr";
+  amount: string;
+  /** @nullable */
+  minOrderValue?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDiscountRuleBody {
+  name: string;
+  type: "event" | "threshold";
+  discountType: "pct" | "pkr";
+  amount: string;
+  minOrderValue?: string;
+  active?: boolean;
+}
+
+export interface UpdateDiscountRuleBody {
+  name?: string;
+  type?: "event" | "threshold";
+  discountType?: "pct" | "pkr";
+  amount?: string;
+  minOrderValue?: string | null;
+  active?: boolean;
+}
+
+export type UpdateDiscountRuleParams = {
+  id: number;
+};

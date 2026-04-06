@@ -1,13 +1,17 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { db, appSettingsTable, usersTable } from "@workspace/db";
+import { db, appSettingsTable, usersTable, discountRulesTable, ordersTable, billsTable, inventoryLogsTable, scheduledOrdersTable } from "@workspace/db";
 import {
   UpdateSettingsBody,
   CreateUserBody,
   UpdateUserParams,
   UpdateUserBody,
   DeleteUserParams,
+  CreateDiscountRuleBody,
+  UpdateDiscountRuleParams,
+  UpdateDiscountRuleBody,
+  DeleteDiscountRuleParams,
 } from "@workspace/api-zod";
 import { requireAuth, requireOwner } from "../middlewares/auth";
 
@@ -159,6 +163,150 @@ router.delete("/settings/users/:id", requireAuth, requireOwner, async (req, res)
     return;
   }
   res.sendStatus(204);
+});
+
+router.get("/settings/discount-rules", requireAuth, requireOwner, async (_req, res): Promise<void> => {
+  const rules = await db
+    .select()
+    .from(discountRulesTable)
+    .where(eq(discountRulesTable.isDeleted, false))
+    .orderBy(discountRulesTable.createdAt);
+
+  res.json(rules.map((r) => ({
+    id: r.id,
+    name: r.name,
+    type: r.type,
+    discountType: r.discountType,
+    amount: String(r.amount),
+    minOrderValue: r.minOrderValue != null ? String(r.minOrderValue) : null,
+    active: r.active,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  })));
+});
+
+router.post("/settings/discount-rules", requireAuth, requireOwner, async (req, res): Promise<void> => {
+  const parsed = CreateDiscountRuleBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const [rule] = await db
+    .insert(discountRulesTable)
+    .values({
+      name: parsed.data.name,
+      type: parsed.data.type,
+      discountType: parsed.data.discountType,
+      amount: parsed.data.amount,
+      minOrderValue: parsed.data.minOrderValue ?? null,
+      active: parsed.data.active ?? true,
+    })
+    .returning();
+
+  res.status(201).json({
+    id: rule.id,
+    name: rule.name,
+    type: rule.type,
+    discountType: rule.discountType,
+    amount: String(rule.amount),
+    minOrderValue: rule.minOrderValue != null ? String(rule.minOrderValue) : null,
+    active: rule.active,
+    createdAt: rule.createdAt,
+    updatedAt: rule.updatedAt,
+  });
+});
+
+router.patch("/settings/discount-rules/:id", requireAuth, requireOwner, async (req, res): Promise<void> => {
+  const params = UpdateDiscountRuleParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const parsed = UpdateDiscountRuleBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+  if (parsed.data.type !== undefined) updateData.type = parsed.data.type;
+  if (parsed.data.discountType !== undefined) updateData.discountType = parsed.data.discountType;
+  if (parsed.data.amount !== undefined) updateData.amount = parsed.data.amount;
+  if ("minOrderValue" in parsed.data) updateData.minOrderValue = parsed.data.minOrderValue ?? null;
+  if (parsed.data.active !== undefined) updateData.active = parsed.data.active;
+
+  const [rule] = await db
+    .update(discountRulesTable)
+    .set(updateData)
+    .where(and(eq(discountRulesTable.id, params.data.id), eq(discountRulesTable.isDeleted, false)))
+    .returning();
+
+  if (!rule) {
+    res.status(404).json({ error: "Discount rule not found" });
+    return;
+  }
+
+  res.json({
+    id: rule.id,
+    name: rule.name,
+    type: rule.type,
+    discountType: rule.discountType,
+    amount: String(rule.amount),
+    minOrderValue: rule.minOrderValue != null ? String(rule.minOrderValue) : null,
+    active: rule.active,
+    createdAt: rule.createdAt,
+    updatedAt: rule.updatedAt,
+  });
+});
+
+router.delete("/settings/discount-rules/:id", requireAuth, requireOwner, async (req, res): Promise<void> => {
+  const params = DeleteDiscountRuleParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [rule] = await db
+    .update(discountRulesTable)
+    .set({ isDeleted: true })
+    .where(and(eq(discountRulesTable.id, params.data.id), eq(discountRulesTable.isDeleted, false)))
+    .returning();
+
+  if (!rule) {
+    res.status(404).json({ error: "Discount rule not found" });
+    return;
+  }
+
+  res.sendStatus(204);
+});
+
+router.get("/settings/discount-rules/active", requireAuth, async (_req, res): Promise<void> => {
+  const rules = await db
+    .select()
+    .from(discountRulesTable)
+    .where(and(eq(discountRulesTable.isDeleted, false), eq(discountRulesTable.active, true)));
+
+  res.json(rules.map((r) => ({
+    id: r.id,
+    name: r.name,
+    type: r.type,
+    discountType: r.discountType,
+    amount: String(r.amount),
+    minOrderValue: r.minOrderValue != null ? String(r.minOrderValue) : null,
+    active: r.active,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  })));
+});
+
+router.post("/settings/clear-data", requireAuth, requireOwner, async (_req, res): Promise<void> => {
+  await db.update(ordersTable).set({ isDeleted: true }).where(eq(ordersTable.isDeleted, false));
+  await db.update(billsTable).set({ isDeleted: true }).where(eq(billsTable.isDeleted, false));
+  await db.update(inventoryLogsTable).set({ isDeleted: true }).where(eq(inventoryLogsTable.isDeleted, false));
+  await db.update(scheduledOrdersTable).set({ isDeleted: true }).where(eq(scheduledOrdersTable.isDeleted, false));
+  res.json({ message: "All orders, bills, inventory logs, and scheduled orders have been cleared." });
 });
 
 export default router;

@@ -82,13 +82,26 @@ export function ReceiptContent({
         <div><span className="text-muted-foreground">{t("Order")} #: </span><span className="font-medium">{b.orderId}</span></div>
       </div>
       <Separator className="border-dashed" />
-      <div className="space-y-1">
-        {b.items?.map((item: BillItem) => (
-          <div key={item.id} className="flex justify-between text-xs" data-testid={`row-bill-item-${item.id}`}>
-            <span>{item.itemName} × {item.quantity}</span>
-            <span>PKR {Number(parseFloat(item.unitPrice) * item.quantity).toLocaleString()}</span>
-          </div>
-        ))}
+      <div className="space-y-0.5">
+        <div className="grid text-xs font-semibold text-muted-foreground border-b pb-0.5" style={{ gridTemplateColumns: "1fr auto auto auto" }}>
+          <span>{t("Item")}</span>
+          <span className="text-right pr-2">{t("Qty")}</span>
+          <span className="text-right pr-2">{t("Disc")}</span>
+          <span className="text-right">{t("Price")}</span>
+        </div>
+        {b.items?.map((item: BillItem) => {
+          const gross = parseFloat(item.unitPrice) * Number(item.quantity);
+          const itemSubtotal = parseFloat(item.subtotal ?? "0");
+          const itemDisc = Math.max(0, gross - itemSubtotal);
+          return (
+            <div key={item.id} className="grid text-xs" style={{ gridTemplateColumns: "1fr auto auto auto" }} data-testid={`row-bill-item-${item.id}`}>
+              <span className="truncate pr-1">{item.itemName}</span>
+              <span className="text-right pr-2">{Number(item.quantity)}</span>
+              <span className="text-right pr-2 text-green-600">{itemDisc > 0 ? `-${itemDisc.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</span>
+              <span className="text-right">PKR {itemSubtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            </div>
+          );
+        })}
       </div>
       <Separator className="border-dashed" />
       <div className="space-y-1 text-xs">
@@ -140,15 +153,14 @@ function BillDetail({ billId }: { billId: number }) {
   const handleDownloadImage = useCallback(async () => {
     if (!receiptRef.current) return;
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(receiptRef.current, {
-        backgroundColor: "#ffffff",
+      const domtoimage = (await import("dom-to-image-more")).default;
+      const dataUrl = await domtoimage.toPng(receiptRef.current, {
+        bgcolor: "#ffffff",
         scale: 2,
-        useCORS: true,
       });
       const link = document.createElement("a");
       link.download = `receipt-${billId}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.href = dataUrl;
       link.click();
     } catch {
       toast({ variant: "destructive", title: t("Error"), description: t("Failed to download image") });

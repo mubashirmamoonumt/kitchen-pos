@@ -1130,3 +1130,61 @@ export const UpdateUserResponse = zod.object({
 export const DeleteUserParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary List discount rules
+ */
+export const DiscountRuleSchema = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  type: zod.enum(["event", "threshold"]),
+  discountType: zod.enum(["pct", "pkr"]),
+  amount: zod.string(),
+  minOrderValue: zod.string().nullish(),
+  active: zod.boolean(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListDiscountRulesResponse = zod.array(DiscountRuleSchema);
+
+/**
+ * @summary Create a discount rule
+ */
+export const CreateDiscountRuleBody = zod.object({
+  name: zod.string(),
+  type: zod.enum(["event", "threshold"]),
+  discountType: zod.enum(["pct", "pkr"]),
+  amount: zod.string(),
+  minOrderValue: zod.string().optional(),
+  active: zod.boolean().optional(),
+});
+
+/**
+ * @summary Update a discount rule
+ */
+export const UpdateDiscountRuleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateDiscountRuleBody = zod.object({
+  name: zod.string().optional(),
+  type: zod.enum(["event", "threshold"]).optional(),
+  discountType: zod.enum(["pct", "pkr"]).optional(),
+  amount: zod.string().optional(),
+  minOrderValue: zod.string().nullish(),
+  active: zod.boolean().optional(),
+});
+
+/**
+ * @summary Delete a discount rule
+ */
+export const DeleteDiscountRuleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Clear all historical orders and logs
+ */
+export const ClearDataResponse = zod.object({
+  message: zod.string(),
+});

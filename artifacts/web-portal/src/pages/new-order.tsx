@@ -10,8 +10,9 @@ import {
   useCreateOrder,
   useListSettings,
   getListOrdersQueryKey,
+  useListActiveDiscountRules,
 } from "@workspace/api-client-react";
-import type { SettingsMap, BillItem, Order } from "@workspace/api-client-react";
+import type { SettingsMap, BillItem, Order, DiscountRule } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
@@ -138,6 +139,7 @@ export default function NewOrder() {
   const createOrder = useCreateOrder();
   const settingsQuery = useListSettings();
   const settings: SettingsMap = settingsQuery.data ?? {};
+  const activeDiscountRulesQuery = useListActiveDiscountRules();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -421,6 +423,37 @@ export default function NewOrder() {
                       <Tag className="w-3 h-3" />
                       {t("Checkout Discount")}
                     </div>
+                    {/* Discount rule suggestion chips */}
+                    {activeDiscountRulesQuery.data && activeDiscountRulesQuery.data.length > 0 && (() => {
+                      const rules: DiscountRule[] = activeDiscountRulesQuery.data;
+                      const visible = rules.filter((r) => {
+                        if (r.type === "event") return true;
+                        if (r.type === "threshold" && r.minOrderValue) {
+                          return subtotal >= parseFloat(r.minOrderValue);
+                        }
+                        return true;
+                      });
+                      if (visible.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap gap-1">
+                          {visible.map((rule) => (
+                            <button
+                              key={rule.id}
+                              type="button"
+                              onClick={() => {
+                                setDiscountType(rule.discountType === "pct" ? "pct" : "pkr");
+                                setDiscountValue(rule.amount);
+                              }}
+                              className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-green-500/40 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-950/30 dark:text-green-400 dark:border-green-500/30 dark:hover:bg-green-900/40 transition-colors"
+                              data-testid={`chip-discount-rule-${rule.id}`}
+                            >
+                              <Tag className="w-2.5 h-2.5" />
+                              {rule.name} ({rule.discountType === "pct" ? `${rule.amount}%` : `PKR ${rule.amount}`})
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     <div className="flex gap-1">
                       <Select value={discountType} onValueChange={(v: "pkr" | "pct") => setDiscountType(v)}>
                         <SelectTrigger className="w-20 h-7 text-xs" data-testid="select-discount-type">

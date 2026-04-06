@@ -75,6 +75,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "dom-to-image-more": "^3.7.2",
     "html2canvas": "^1.4.1"
   }
 }

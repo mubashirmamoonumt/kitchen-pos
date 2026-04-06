@@ -9,3 +9,4 @@ export * from "./bills";
 export * from "./inventory-logs";
 export * from "./scheduled-orders";
 export * from "./app-settings";
+export * from "./discount-rules";
