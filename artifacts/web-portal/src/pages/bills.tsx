@@ -86,7 +86,7 @@ export function ReceiptContent({
         <div className="grid text-xs font-semibold text-muted-foreground border-b pb-0.5" style={{ gridTemplateColumns: "1fr auto auto auto" }}>
           <span>{t("Item")}</span>
           <span className="text-right pr-[40px]">{t("Qty")}</span>
-          <span className="text-right pr-2">{t("Disc")}</span>
+          <span className="text-right pr-[12px]">{t("Discount")}</span>
           <span className="text-right">{t("Price")}</span>
         </div>
         {b.items?.map((item: BillItem) => {
