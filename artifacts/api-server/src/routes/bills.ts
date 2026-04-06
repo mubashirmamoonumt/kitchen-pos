@@ -10,11 +10,20 @@ import {
   inventoryLogsTable,
   recipesTable,
   recipeIngredientsTable,
+  appSettingsTable,
 } from "@workspace/db";
 import { ListBillsQueryParams, GenerateBillBody, GetBillParams } from "@workspace/api-zod";
 import { requireAuth, requireOwner } from "../middlewares/auth";
 
 const router: IRouter = Router();
+
+async function getSettingValue(key: string, fallback = "0"): Promise<string> {
+  const [row] = await db
+    .select({ value: appSettingsTable.value })
+    .from(appSettingsTable)
+    .where(and(eq(appSettingsTable.key, key), eq(appSettingsTable.isDeleted, false)));
+  return row?.value ?? fallback;
+}
 
 router.get("/bills", requireAuth, requireOwner, async (req, res): Promise<void> => {
   const query = ListBillsQueryParams.safeParse(req.query);
@@ -52,6 +61,9 @@ router.post("/bills", requireAuth, requireOwner, async (req, res): Promise<void>
   const { orderId, paymentMethod, notes } = parsed.data;
 
   try {
+    const taxPercent = parseFloat(await getSettingValue("bill_tax_percent", "0"));
+    const discountPercent = parseFloat(await getSettingValue("bill_discount_percent", "0"));
+
     const result = await db.transaction(async (tx) => {
       const [existingBill] = await tx
         .select({ id: billsTable.id })
@@ -142,15 +154,33 @@ router.post("/bills", requireAuth, requireOwner, async (req, res): Promise<void>
         }
       }
 
+      const subtotalRaw = orderItems.reduce(
+        (sum, oi) => sum + parseFloat(oi.subtotal ?? "0"),
+        0
+      );
+      const discountAmt = (subtotalRaw * discountPercent) / 100;
+      const taxAmt = ((subtotalRaw - discountAmt) * taxPercent) / 100;
+      const totalAmount = subtotalRaw - discountAmt + taxAmt;
+
       const [bill] = await tx
         .insert(billsTable)
         .values({
           orderId,
-          totalAmount: order.totalAmount,
+          subtotal: subtotalRaw.toFixed(2),
+          discount: discountAmt.toFixed(2),
+          tax: taxAmt.toFixed(2),
+          totalAmount: totalAmount.toFixed(2),
           paymentMethod: paymentMethod ?? "cash",
           notes: notes ?? null,
         })
         .returning();
+
+      const year = new Date(bill.createdAt).getFullYear();
+      const billNumber = `INV-${year}-${String(bill.id).padStart(4, "0")}`;
+      await tx
+        .update(billsTable)
+        .set({ billNumber })
+        .where(eq(billsTable.id, bill.id));
 
       if (inventoryEntries.length > 0) {
         await tx.insert(inventoryLogsTable).values(
@@ -184,7 +214,17 @@ router.post("/bills", requireAuth, requireOwner, async (req, res): Promise<void>
               .where(eq(inventoryLogsTable.billId, bill.id))
           : [];
 
-      return { ...bill, items: billItems, order, deductions: inventoryLogs };
+      return {
+        ...bill,
+        billNumber,
+        subtotal: subtotalRaw.toFixed(2),
+        discount: discountAmt.toFixed(2),
+        tax: taxAmt.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
+        items: billItems,
+        order,
+        deductions: inventoryLogs,
+      };
     });
 
     res.status(201).json(result);

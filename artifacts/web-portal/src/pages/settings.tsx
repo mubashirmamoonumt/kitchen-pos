@@ -1,8 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useGetMe, useListUsers, useCreateUser, useUpdateUser } from "@workspace/api-client-react";
+import {
+  useGetMe,
+  useListUsers,
+  useCreateUser,
+  useUpdateUser,
+  useListSettings,
+  useUpdateSettings,
+  getListSettingsQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +25,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Moon, Sun, Languages, User } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Moon, Sun, Languages, User, Receipt } from "lucide-react";
 
 const pinSchema = z.object({
   currentPassword: z.string().min(1),
@@ -33,6 +42,18 @@ const userSchema = z.object({
 });
 type UserForm = z.infer<typeof userSchema>;
 
+const billSettingsSchema = z.object({
+  kitchen_name: z.string().min(1),
+  kitchen_phone: z.string(),
+  kitchen_address: z.string(),
+  bill_tax_percent: z.string(),
+  bill_discount_percent: z.string(),
+  bill_thank_you_message: z.string(),
+  bill_cta_text: z.string(),
+  bill_website: z.string(),
+});
+type BillSettingsForm = z.infer<typeof billSettingsSchema>;
+
 export default function Settings() {
   const { t, language, setLanguage } = useLanguage();
   const { toast } = useToast();
@@ -44,6 +65,10 @@ export default function Settings() {
   const users = useListUsers();
   const updateUser = useUpdateUser();
   const createUser = useCreateUser();
+  const settings = useListSettings();
+  const updateSettings = useUpdateSettings();
+
+  const isOwner = (me.data as any)?.role === "owner";
 
   const pinForm = useForm<PinForm>({
     resolver: zodResolver(pinSchema),
@@ -54,6 +79,36 @@ export default function Settings() {
     resolver: zodResolver(userSchema),
     defaultValues: { name: "", email: "", password: "", role: "staff" },
   });
+
+  const billForm = useForm<BillSettingsForm>({
+    resolver: zodResolver(billSettingsSchema),
+    defaultValues: {
+      kitchen_name: "",
+      kitchen_phone: "",
+      kitchen_address: "",
+      bill_tax_percent: "0",
+      bill_discount_percent: "0",
+      bill_thank_you_message: "Thank you for your order!",
+      bill_cta_text: "",
+      bill_website: "",
+    },
+  });
+
+  useEffect(() => {
+    if (settings.data) {
+      const s = settings.data as Record<string, string>;
+      billForm.reset({
+        kitchen_name: s.kitchen_name ?? "MUFAZ Kitchen",
+        kitchen_phone: s.kitchen_phone ?? "",
+        kitchen_address: s.kitchen_address ?? "",
+        bill_tax_percent: s.bill_tax_percent ?? "0",
+        bill_discount_percent: s.bill_discount_percent ?? "0",
+        bill_thank_you_message: s.bill_thank_you_message ?? "Thank you for your order!",
+        bill_cta_text: s.bill_cta_text ?? "",
+        bill_website: s.bill_website ?? "",
+      });
+    }
+  }, [settings.data]);
 
   const toggleDarkMode = (on: boolean) => {
     setDarkMode(on);
@@ -97,6 +152,21 @@ export default function Settings() {
     );
   };
 
+  const onSaveBillSettings = (values: BillSettingsForm) => {
+    updateSettings.mutate(
+      { data: values as any },
+      {
+        onSuccess: () => {
+          toast({ title: t("Bill Settings Saved") });
+          qc.invalidateQueries({ queryKey: getListSettingsQueryKey() });
+        },
+        onError: (err: any) => {
+          toast({ variant: "destructive", title: t("Error"), description: err?.data?.error || t("Failed to save settings") });
+        },
+      }
+    );
+  };
+
   return (
     <div className="space-y-6 max-w-2xl" data-testid="page-settings">
       <h1 className="text-2xl font-bold">{t("Settings")}</h1>
@@ -105,7 +175,8 @@ export default function Settings() {
         <TabsList>
           <TabsTrigger value="general">{t("General")}</TabsTrigger>
           <TabsTrigger value="security">{t("Security")}</TabsTrigger>
-          <TabsTrigger value="users">{t("Users")}</TabsTrigger>
+          {isOwner && <TabsTrigger value="bill">{t("Bill")}</TabsTrigger>}
+          {isOwner && <TabsTrigger value="users">{t("Users")}</TabsTrigger>}
         </TabsList>
 
         {/* General */}
@@ -194,39 +265,142 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        {/* Users */}
-        <TabsContent value="users" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">{t("Manage staff accounts")}</p>
-            <Button size="sm" onClick={() => { userForm.reset(); setUserDialog(true); }} data-testid="button-add-user">
-              <Plus className="w-4 h-4 mr-2" /> {t("Add User")}
-            </Button>
-          </div>
-          {users.isLoading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
-          ) : (
-            <div className="space-y-2">
-              {users.data?.map((u: any) => (
-                <Card key={u.id} data-testid={`card-user-${u.id}`}>
-                  <CardContent className="py-3 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="w-4 h-4 text-primary" />
+        {/* Bill Settings (owner only) */}
+        {isOwner && (
+          <TabsContent value="bill" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Receipt className="w-4 h-4" />
+                  {t("Bill / Invoice Settings")}
+                </CardTitle>
+                <CardDescription>{t("Customize the information shown on every receipt")}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {settings.isLoading ? (
+                  <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+                ) : (
+                  <Form {...billForm}>
+                    <form onSubmit={billForm.handleSubmit(onSaveBillSettings)} className="space-y-4">
+                      <div className="border-b pb-4 space-y-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{t("Business Info")}</p>
+                        <FormField control={billForm.control} name="kitchen_name" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("Business Name")}</FormLabel>
+                            <FormControl><Input {...field} data-testid="input-kitchen-name" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField control={billForm.control} name="kitchen_phone" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("Phone")}</FormLabel>
+                              <FormControl><Input {...field} data-testid="input-kitchen-phone" /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={billForm.control} name="bill_website" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("Website")}</FormLabel>
+                              <FormControl><Input placeholder="www.example.com" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                        </div>
+                        <FormField control={billForm.control} name="kitchen_address" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("Address")}</FormLabel>
+                            <FormControl><Input {...field} data-testid="input-kitchen-address" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{u.name}</p>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
+
+                      <div className="border-b pb-4 space-y-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{t("Pricing")}</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField control={billForm.control} name="bill_discount_percent" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("Discount")} %</FormLabel>
+                              <FormControl><Input type="number" min="0" max="100" step="0.01" {...field} data-testid="input-discount-percent" /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={billForm.control} name="bill_tax_percent" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("Tax")} %</FormLabel>
+                              <FormControl><Input type="number" min="0" max="100" step="0.01" {...field} data-testid="input-tax-percent" /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">{t("Applied automatically when generating a new bill")}</p>
                       </div>
-                      <Badge variant={u.role === "owner" ? "default" : "outline"} className="text-xs">
-                        {u.role}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{t("Receipt Footer")}</p>
+                        <FormField control={billForm.control} name="bill_thank_you_message" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("Thank-You Message")}</FormLabel>
+                            <FormControl><Textarea rows={2} {...field} data-testid="input-thank-you-message" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={billForm.control} name="bill_cta_text" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("CTA / Promo Text")}</FormLabel>
+                            <FormControl><Textarea rows={2} placeholder={t("e.g. Order again on WhatsApp: +92-300-0000000")} {...field} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+
+                      <Button type="submit" disabled={updateSettings.isPending} data-testid="button-save-bill-settings">
+                        {t("Save Bill Settings")}
+                      </Button>
+                    </form>
+                  </Form>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Users (owner only) */}
+        {isOwner && (
+          <TabsContent value="users" className="space-y-4 mt-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">{t("Manage staff accounts")}</p>
+              <Button size="sm" onClick={() => { userForm.reset(); setUserDialog(true); }} data-testid="button-add-user">
+                <Plus className="w-4 h-4 mr-2" /> {t("Add User")}
+              </Button>
             </div>
-          )}
-        </TabsContent>
+            {users.isLoading ? (
+              <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
+            ) : (
+              <div className="space-y-2">
+                {users.data?.map((u: any) => (
+                  <Card key={u.id} data-testid={`card-user-${u.id}`}>
+                    <CardContent className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{u.name}</p>
+                          <p className="text-xs text-muted-foreground">{u.email}</p>
+                        </div>
+                        <Badge variant={u.role === "owner" ? "default" : "outline"} className="text-xs">
+                          {u.role}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Add user dialog */}
