@@ -52,6 +52,7 @@ async function buildRecipeDetail(recipe: {
     menuItemId: recipe.menuItemId,
     menuItemName: menuItem?.name ?? "",
     menuItemNameUr: menuItem?.nameUr ?? "",
+    menuItemImageUrl: menuItem?.imageUrl ?? null,
     instructions: recipe.instructions ?? null,
     ingredients,
     createdAt: recipe.createdAt,
@@ -110,7 +111,12 @@ router.put("/recipes/menu-item/:menuItemId", requireAuth, async (req, res): Prom
     if (existing) {
       await tx
         .update(recipesTable)
-        .set({ isDeleted: false, instructions: parsed.data.instructions ?? existing.instructions })
+        .set({
+          isDeleted: false,
+          instructions: "instructions" in parsed.data
+            ? (parsed.data.instructions ?? null)
+            : existing.instructions,
+        })
         .where(eq(recipesTable.id, existing.id));
       recipeId = existing.id;
 

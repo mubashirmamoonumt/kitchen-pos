@@ -2007,6 +2007,8 @@ components:
           type: string
         menuItemNameUr:
           type: string
+        menuItemImageUrl:
+          type: ["string", "null"]
         instructions:
           type: ["string", "null"]
         ingredients:

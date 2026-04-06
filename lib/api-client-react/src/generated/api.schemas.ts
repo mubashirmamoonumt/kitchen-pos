@@ -322,6 +322,7 @@ export interface RecipeDetail {
   menuItemId: number;
   menuItemName: string;
   menuItemNameUr?: string;
+  menuItemImageUrl?: string | null;
   instructions?: string | null;
   ingredients: RecipeIngredientDetail[];
   createdAt: string;
@@ -335,7 +336,7 @@ export interface RecipeIngredientInput {
 }
 
 export interface UpsertRecipeBody {
-  instructions?: string;
+  instructions?: string | null;
   ingredients: RecipeIngredientInput[];
 }
 

@@ -678,6 +678,7 @@ export const ListRecipesResponseItem = zod.object({
   menuItemId: zod.number(),
   menuItemName: zod.string(),
   menuItemNameUr: zod.string().optional(),
+  menuItemImageUrl: zod.string().nullish(),
   instructions: zod.string().nullish(),
   ingredients: zod.array(
     zod.object({
@@ -708,6 +709,7 @@ export const GetRecipeByMenuItemResponse = zod.object({
   menuItemId: zod.number(),
   menuItemName: zod.string(),
   menuItemNameUr: zod.string().optional(),
+  menuItemImageUrl: zod.string().nullish(),
   instructions: zod.string().nullish(),
   ingredients: zod.array(
     zod.object({
@@ -733,7 +735,7 @@ export const UpsertRecipeParams = zod.object({
 });
 
 export const UpsertRecipeBody = zod.object({
-  instructions: zod.string().optional(),
+  instructions: zod.string().nullish(),
   ingredients: zod.array(
     zod.object({
       ingredientId: zod.number(),
@@ -748,6 +750,7 @@ export const UpsertRecipeResponse = zod.object({
   menuItemId: zod.number(),
   menuItemName: zod.string(),
   menuItemNameUr: zod.string().optional(),
+  menuItemImageUrl: zod.string().nullish(),
   instructions: zod.string().nullish(),
   ingredients: zod.array(
     zod.object({

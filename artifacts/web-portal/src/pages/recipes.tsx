@@ -69,7 +69,7 @@ function RecipeForm({ menuItemId, menuItemName, onClose }: { menuItemId: number;
       {
         menuItemId,
         data: {
-          instructions: values.instructions || undefined,
+          instructions: values.instructions && values.instructions.trim() ? values.instructions.trim() : null,
           ingredients: values.ingredients.map((i) => ({
             ingredientId: i.ingredientId,
             quantity: i.quantity,
@@ -224,9 +224,26 @@ function RecipeCard({ recipe, language, t }: { recipe: RecipeDetail; language: s
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <BookOpen className="w-4 h-4 text-primary" />
-        <h3 className="font-semibold text-base">{name}</h3>
+      {/* Header: photo + name */}
+      <div className="flex items-center gap-3">
+        {recipe.menuItemImageUrl ? (
+          <img
+            src={recipe.menuItemImageUrl}
+            alt={name}
+            className="w-14 h-14 rounded-lg object-cover shrink-0 border"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center shrink-0 border">
+            <BookOpen className="w-6 h-6 text-muted-foreground" />
+          </div>
+        )}
+        <div>
+          <h3 className="font-semibold text-base">{name}</h3>
+          {recipe.menuItemNameUr && language !== "ur" && (
+            <p className="text-xs text-muted-foreground font-urdu">{recipe.menuItemNameUr}</p>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
