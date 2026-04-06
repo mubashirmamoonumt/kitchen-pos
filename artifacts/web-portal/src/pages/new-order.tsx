@@ -36,6 +36,7 @@ interface CreateOrderResponseType {
   totalAmount: string;
   discountAmount: string;
   discountType: "pct" | "pkr";
+  discountRuleName?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
   paymentMethod?: string | null;
@@ -77,6 +78,7 @@ function buildReceiptBillData(response: CreateOrderResponseType): ReceiptBillDat
     totalAmount: response.totalAmount,
     discountAmount: response.discountAmount,
     discountType: response.discountType,
+    discountRuleName: response.discountRuleName,
     customerName: response.customerName,
     paymentMethod: response.paymentMethod,
     createdAt: String(response.createdAt),

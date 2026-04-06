@@ -83,10 +83,10 @@ export function ReceiptContent({
       </div>
       <Separator className="border-dashed" />
       <div className="space-y-0.5">
-        <div className="grid text-xs font-semibold text-muted-foreground border-b pb-0.5" style={{ gridTemplateColumns: "1fr auto auto auto" }}>
+        <div className="grid text-xs font-semibold text-muted-foreground border-b pb-0.5" style={{ gridTemplateColumns: "1fr 36px 70px 90px" }}>
           <span>{t("Item")}</span>
-          <span className="text-right pr-[20px]">{t("Qty.")}</span>
-          <span className="text-right pr-[12px]">{t("Discount")}</span>
+          <span className="text-right">{t("Qty.")}</span>
+          <span className="text-right">{t("Discount")}</span>
           <span className="text-right">{t("Price")}</span>
         </div>
         {b.items?.map((item: BillItem) => {
@@ -94,10 +94,10 @@ export function ReceiptContent({
           const itemSubtotal = parseFloat(item.subtotal ?? "0");
           const itemDisc = Math.max(0, gross - itemSubtotal);
           return (
-            <div key={item.id} className="grid text-xs" style={{ gridTemplateColumns: "1fr auto auto auto" }} data-testid={`row-bill-item-${item.id}`}>
+            <div key={item.id} className="grid text-xs" style={{ gridTemplateColumns: "1fr 36px 70px 90px" }} data-testid={`row-bill-item-${item.id}`}>
               <span className="truncate pr-1">{item.itemName}</span>
-              <span className="text-right pr-[60px]">{Number(item.quantity)}</span>
-              <span className="text-right text-green-600 pr-[25px]">{itemDisc > 0 ? `-${itemDisc.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</span>
+              <span className="text-right">{Number(item.quantity)}</span>
+              <span className="text-right text-green-600">{itemDisc > 0 ? `-${itemDisc.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</span>
               <span className="text-right">PKR {itemSubtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             </div>
           );

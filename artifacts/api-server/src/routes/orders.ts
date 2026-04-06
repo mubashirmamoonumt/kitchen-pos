@@ -176,11 +176,7 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
 
   let orderDiscount = 0;
   if (orderDiscountAmount) {
-    if (discountType === "pct") {
-      orderDiscount = (itemsSubtotal * parseFloat(orderDiscountAmount)) / 100;
-    } else {
-      orderDiscount = parseFloat(orderDiscountAmount);
-    }
+    orderDiscount = parseFloat(orderDiscountAmount);
   }
 
   const totalAmount = Math.max(0, itemsSubtotal - orderDiscount).toFixed(2);
