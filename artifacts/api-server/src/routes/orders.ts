@@ -164,21 +164,25 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
-  const subtotal = items.reduce(
-    (sum, item) => sum + parseFloat(item.itemPrice) * item.quantity,
-    0
-  );
+  const itemsWithCalc = items.map((item) => {
+    const gross = parseFloat(item.itemPrice) * item.quantity;
+    const itemDisc = parseFloat(item.discountAmount ?? "0");
+    const lineTotal = Math.max(0, gross - itemDisc);
+    return { ...item, gross, itemDisc, lineTotal };
+  });
+
+  const itemsSubtotal = itemsWithCalc.reduce((sum, i) => sum + i.lineTotal, 0);
 
   let orderDiscount = 0;
   if (orderDiscountAmount) {
     if (discountType === "pct") {
-      orderDiscount = (subtotal * parseFloat(orderDiscountAmount)) / 100;
+      orderDiscount = (itemsSubtotal * parseFloat(orderDiscountAmount)) / 100;
     } else {
       orderDiscount = parseFloat(orderDiscountAmount);
     }
   }
 
-  const totalAmount = Math.max(0, subtotal - orderDiscount).toFixed(2);
+  const totalAmount = Math.max(0, itemsSubtotal - orderDiscount).toFixed(2);
 
   try {
     const result = await db.transaction(async (tx) => {
@@ -200,20 +204,16 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
       const orderItems = await tx
         .insert(orderItemsTable)
         .values(
-          items.map((item) => {
-            const itemSubtotal = parseFloat(item.itemPrice) * item.quantity;
-            const itemDiscount = parseFloat(item.discountAmount ?? "0");
-            return {
-              orderId: order.id,
-              menuItemId: item.menuItemId,
-              itemName: item.itemName,
-              itemPrice: item.itemPrice,
-              quantity: item.quantity,
-              unit: item.unit ?? "qty",
-              discountAmount: itemDiscount.toFixed(2),
-              subtotal: Math.max(0, itemSubtotal - itemDiscount).toFixed(2),
-            };
-          })
+          itemsWithCalc.map((item) => ({
+            orderId: order.id,
+            menuItemId: item.menuItemId,
+            itemName: item.itemName,
+            itemPrice: item.itemPrice,
+            quantity: item.quantity,
+            unit: item.unit ?? "qty",
+            discountAmount: item.itemDisc.toFixed(2),
+            subtotal: item.lineTotal.toFixed(2),
+          }))
         )
         .returning();
 
@@ -222,10 +222,7 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
         await getSettingValue("bill_discount_percent", "0")
       );
 
-      const subtotalAmt = orderItems.reduce(
-        (sum, oi) => sum + parseFloat(oi.subtotal ?? "0"),
-        0
-      );
+      const subtotalAmt = itemsSubtotal;
       const settingDiscount = (subtotalAmt * settingDiscountPercent) / 100;
       const effectiveDiscount = orderDiscount > 0 ? orderDiscount : settingDiscount;
       const taxAmt = ((subtotalAmt - effectiveDiscount) * taxPercent) / 100;

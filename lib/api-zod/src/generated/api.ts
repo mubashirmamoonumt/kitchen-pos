@@ -411,6 +411,61 @@ export const CreateOrderBody = zod.object({
   ),
 });
 
+const BillItemSchema = zod.object({
+  id: zod.number(),
+  billId: zod.number(),
+  itemName: zod.string(),
+  quantity: zod.number(),
+  unitPrice: zod.string(),
+  subtotal: zod.string(),
+});
+
+const BillSchema = zod.object({
+  id: zod.number(),
+  orderId: zod.number(),
+  billNumber: zod.string().nullish(),
+  subtotal: zod.string(),
+  discount: zod.string(),
+  tax: zod.string(),
+  totalAmount: zod.string(),
+  paymentMethod: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  items: zod.array(BillItemSchema).optional(),
+});
+
+export const CreateOrderResponse = zod.object({
+  id: zod.number(),
+  customerId: zod.number().nullish(),
+  customerName: zod.string().nullish(),
+  customerPhone: zod.string().nullish(),
+  status: zod.string(),
+  notes: zod.string().nullish(),
+  totalAmount: zod.string(),
+  discountAmount: zod.string(),
+  discountType: zod.string(),
+  paymentMethod: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      orderId: zod.number(),
+      menuItemId: zod.number().nullish(),
+      itemName: zod.string(),
+      itemPrice: zod.string(),
+      quantity: zod.number(),
+      unit: zod.string(),
+      discountAmount: zod.string(),
+      subtotal: zod.string(),
+    }),
+  ),
+  bill: BillSchema.nullish(),
+});
+
+export type CreateOrderResponseType = zod.infer<typeof CreateOrderResponse>;
+
 /**
  * @summary Get order by ID
  */

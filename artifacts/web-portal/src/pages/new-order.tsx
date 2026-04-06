@@ -12,6 +12,7 @@ import {
   getListOrdersQueryKey,
 } from "@workspace/api-client-react";
 import type { SettingsMap } from "@workspace/api-client-react";
+import type { CreateOrderResponseType } from "@workspace/api-zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
@@ -57,7 +58,7 @@ export default function NewOrder() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discountValue, setDiscountValue] = useState<string>("");
   const [discountType, setDiscountType] = useState<"pkr" | "pct">("pkr");
-  const [receiptBill, setReceiptBill] = useState<any>(null);
+  const [receiptBill, setReceiptBill] = useState<CreateOrderResponseType | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
   const categories = useListCategories();
@@ -146,7 +147,7 @@ export default function NewOrder() {
         },
       },
       {
-        onSuccess: (data: any) => {
+        onSuccess: (data: CreateOrderResponseType) => {
           queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
           if (data?.bill) {
             setReceiptBill(data);
@@ -156,7 +157,7 @@ export default function NewOrder() {
             setLocation("/orders");
           }
         },
-        onError: (err: any) => {
+        onError: (err: { data?: { error?: string } }) => {
           toast({ variant: "destructive", title: t("Error"), description: err?.data?.error || t("Failed to create order") });
         },
       }
@@ -465,7 +466,7 @@ export default function NewOrder() {
                   totalAmount: receiptBill.bill?.totalAmount,
                   paymentMethod: receiptBill.paymentMethod ?? "cash",
                   createdAt: receiptBill.bill?.createdAt ?? new Date().toISOString(),
-                  items: receiptBill.items?.map((i: any) => ({
+                  items: receiptBill.items?.map((i) => ({
                     id: i.id,
                     itemName: i.itemName,
                     quantity: i.quantity,

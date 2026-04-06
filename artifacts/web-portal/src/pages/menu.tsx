@@ -222,53 +222,78 @@ export default function Menu() {
             <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
           ) : menuItems.data?.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-muted-foreground">{t("No items in this category")}</CardContent></Card>
-          ) : (
-            <div className="space-y-2">
-              {menuItems.data?.map((item) => {
-                const margin = isOwner ? getMarginPct(item.price, item.internalCost) : null;
-                return (
-                  <Card key={item.id} data-testid={`card-menu-item-${item.id}`}>
-                    <CardContent className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-sm">{language === "ur" && item.nameUr ? item.nameUr : item.name}</span>
-                            {!item.isAvailable && <Badge variant="outline" className="text-xs text-muted-foreground">{t("Unavailable")}</Badge>}
-                            <Badge variant="outline" className="text-xs text-muted-foreground">{item.unit}</Badge>
-                            {parseFloat(item.defaultDiscountPct ?? "0") > 0 && (
-                              <Badge variant="secondary" className="text-xs">{item.defaultDiscountPct}% {t("off")}</Badge>
-                            )}
-                            {margin !== null && (
-                              <Badge className={`text-xs flex items-center gap-0.5 ${margin >= 50 ? "bg-green-100 text-green-800 border-green-200" : margin >= 25 ? "bg-yellow-100 text-yellow-800 border-yellow-200" : "bg-red-100 text-red-800 border-red-200"}`} variant="outline">
-                                <TrendingUp className="w-2.5 h-2.5" />
-                                {margin}%
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-primary font-semibold text-sm">PKR {Number(item.price).toLocaleString()}</span>
-                            {isOwner && item.internalCost && <span className="text-xs text-muted-foreground">cost: PKR {Number(item.internalCost).toLocaleString()}</span>}
-                            {item.description && <span className="text-xs text-muted-foreground truncate max-w-40">{item.description}</span>}
-                          </div>
+          ) : (() => {
+            const renderItem = (item: NonNullable<typeof menuItems.data>[0]) => {
+              const margin = isOwner ? getMarginPct(item.price, item.internalCost) : null;
+              return (
+                <Card key={item.id} data-testid={`card-menu-item-${item.id}`}>
+                  <CardContent className="py-3 px-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">{language === "ur" && item.nameUr ? item.nameUr : item.name}</span>
+                          {!item.isAvailable && <Badge variant="outline" className="text-xs text-muted-foreground">{t("Unavailable")}</Badge>}
+                          <Badge variant="outline" className="text-xs text-muted-foreground">{item.unit}</Badge>
+                          {parseFloat(item.defaultDiscountPct ?? "0") > 0 && (
+                            <Badge variant="secondary" className="text-xs">{item.defaultDiscountPct}% {t("off")}</Badge>
+                          )}
+                          {margin !== null && (
+                            <Badge className={`text-xs flex items-center gap-0.5 ${margin >= 50 ? "bg-green-100 text-green-800 border-green-200" : margin >= 25 ? "bg-yellow-100 text-yellow-800 border-yellow-200" : "bg-red-100 text-red-800 border-red-200"}`} variant="outline">
+                              <TrendingUp className="w-2.5 h-2.5" />
+                              {margin}%
+                            </Badge>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleToggleAvail(item.id)} data-testid={`button-toggle-${item.id}`}>
-                            {item.isAvailable ? <ToggleRight className="w-4 h-4 text-green-600" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openItemEdit(item)} data-testid={`button-edit-item-${item.id}`}>
-                            <Pencil className="w-3 h-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(item.id)} data-testid={`button-delete-item-${item.id}`}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-primary font-semibold text-sm">PKR {Number(item.price).toLocaleString()}</span>
+                          {isOwner && item.internalCost && <span className="text-xs text-muted-foreground">cost: PKR {Number(item.internalCost).toLocaleString()}</span>}
+                          {item.description && <span className="text-xs text-muted-foreground truncate max-w-40">{item.description}</span>}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleToggleAvail(item.id)} data-testid={`button-toggle-${item.id}`}>
+                          {item.isAvailable ? <ToggleRight className="w-4 h-4 text-green-600" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openItemEdit(item)} data-testid={`button-edit-item-${item.id}`}>
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(item.id)} data-testid={`button-delete-item-${item.id}`}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            };
+
+            if (activeCategoryId !== null) {
+              return <div className="space-y-2">{menuItems.data?.map(renderItem)}</div>;
+            }
+
+            const catMap = new Map(categories.data?.map((c) => [c.id, c]));
+            const grouped = new Map<number | null, NonNullable<typeof menuItems.data>>();
+            for (const item of menuItems.data ?? []) {
+              const catId = item.categoryId ?? null;
+              if (!grouped.has(catId)) grouped.set(catId, []);
+              grouped.get(catId)!.push(item);
+            }
+
+            return (
+              <div className="space-y-5">
+                {[...grouped.entries()].map(([catId, items]) => {
+                  const cat = catId !== null ? catMap.get(catId) : null;
+                  const catLabel = cat ? (language === "ur" && cat.nameUr ? cat.nameUr : cat.name) : t("Uncategorized");
+                  return (
+                    <div key={catId ?? "uncategorized"}>
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 border-b pb-1">{catLabel}</h3>
+                      <div className="space-y-2">{items.map(renderItem)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -320,11 +345,11 @@ export default function Menu() {
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="qty">{t("qty")}</SelectItem>
-                        <SelectItem value="plate">{t("plate")}</SelectItem>
-                        <SelectItem value="bowl">{t("bowl")}</SelectItem>
-                        <SelectItem value="glass">{t("glass")}</SelectItem>
                         <SelectItem value="kg">{t("kg")}</SelectItem>
                         <SelectItem value="g">{t("g")}</SelectItem>
+                        <SelectItem value="dozen">{t("dozen")}</SelectItem>
+                        <SelectItem value="litre">{t("litre")}</SelectItem>
+                        <SelectItem value="piece">{t("piece")}</SelectItem>
                         <SelectItem value="portion">{t("portion")}</SelectItem>
                       </SelectContent>
                     </Select>
