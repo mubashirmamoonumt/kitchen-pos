@@ -1496,6 +1496,13 @@ components:
           type: ["string", "null"]
         price:
           type: string
+        unit:
+          type: string
+        internalCost:
+          type: ["string", "null"]
+          description: "Owner-only field. Stripped from responses for non-owner roles."
+        defaultDiscountPct:
+          type: ["string", "null"]
         isAvailable:
           type: boolean
         imageUrl:
@@ -1511,6 +1518,7 @@ components:
         - categoryId
         - name
         - price
+        - unit
         - isAvailable
         - createdAt
         - updatedAt
@@ -1529,6 +1537,12 @@ components:
         descriptionUr:
           type: string
         price:
+          type: string
+        unit:
+          type: string
+        internalCost:
+          type: string
+        defaultDiscountPct:
           type: string
         isAvailable:
           type: boolean
@@ -1553,6 +1567,12 @@ components:
         descriptionUr:
           type: string
         price:
+          type: string
+        unit:
+          type: string
+        internalCost:
+          type: string
+        defaultDiscountPct:
           type: string
         isAvailable:
           type: boolean
@@ -1660,7 +1680,12 @@ components:
         itemPrice:
           type: string
         quantity:
-          type: integer
+          type: number
+          format: float
+        unit:
+          type: string
+        discountAmount:
+          type: string
         subtotal:
           type: string
       required:
@@ -1669,6 +1694,8 @@ components:
         - itemName
         - itemPrice
         - quantity
+        - unit
+        - discountAmount
         - subtotal
 
     Order:
@@ -1688,6 +1715,10 @@ components:
           type: ["string", "null"]
         totalAmount:
           type: string
+        discountAmount:
+          type: string
+        discountType:
+          type: string
         paymentMethod:
           type: ["string", "null"]
         createdAt:
@@ -1700,6 +1731,8 @@ components:
         - id
         - status
         - totalAmount
+        - discountAmount
+        - discountType
         - createdAt
         - updatedAt
 
@@ -1720,6 +1753,10 @@ components:
           type: ["string", "null"]
         totalAmount:
           type: string
+        discountAmount:
+          type: string
+        discountType:
+          type: string
         paymentMethod:
           type: ["string", "null"]
         createdAt:
@@ -1736,6 +1773,8 @@ components:
         - id
         - status
         - totalAmount
+        - discountAmount
+        - discountType
         - createdAt
         - updatedAt
         - items
@@ -1750,7 +1789,12 @@ components:
         itemPrice:
           type: string
         quantity:
-          type: integer
+          type: number
+          format: float
+        unit:
+          type: string
+        discountAmount:
+          type: string
       required:
         - menuItemId
         - itemName
@@ -1769,6 +1813,10 @@ components:
         notes:
           type: string
         paymentMethod:
+          type: string
+        discountAmount:
+          type: string
+        discountType:
           type: string
         items:
           type: array

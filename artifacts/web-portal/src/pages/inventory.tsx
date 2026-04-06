@@ -49,7 +49,7 @@ export default function Inventory() {
   const [dialog, setDialog] = useState<{ open: boolean; editing?: any }>({ open: false });
   const [adjustDialog, setAdjustDialog] = useState<{ open: boolean; ingredient?: any }>({ open: false });
 
-  const ingredients = useListIngredients({ params: lowStockOnly ? { lowStock: true } : undefined });
+  const ingredients = useListIngredients(lowStockOnly ? { lowStock: true } : undefined);
   const inventoryLogs = useListInventoryLogs();
   const createIngredient = useCreateIngredient();
   const updateIngredient = useUpdateIngredient();

@@ -37,8 +37,8 @@ const STATUS_ORDER = ["pending", "confirmed", "preparing", "ready"];
 export default function Dashboard() {
   const { t } = useLanguage();
   const summary = useGetOrdersDashboardSummary();
-  const lowStockIngredients = useListIngredients({ params: { lowStock: true } });
-  const activeOrders = useListOrders({ params: { status: "pending" } });
+  const lowStockIngredients = useListIngredients({ lowStock: true });
+  const activeOrders = useListOrders({ status: "pending" });
 
   const data = summary.data;
 
@@ -68,9 +68,9 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             title={t("Today's Orders")}
-            value={data?.todayOrders ?? 0}
+            value={data?.todayOrderCount ?? 0}
             icon={ShoppingBag}
-            sub={`${data?.todayDelivered ?? 0} ${t("Delivered")}`}
+            sub={`${data?.pendingOrderCount ?? 0} ${t("Pending")}`}
           />
           <StatCard
             title={t("Revenue")}
@@ -79,7 +79,7 @@ export default function Dashboard() {
           />
           <StatCard
             title={t("Active Orders")}
-            value={data?.activeOrders ?? 0}
+            value={data?.activeOrderCount ?? 0}
             icon={ClipboardList}
           />
           <StatCard
@@ -106,7 +106,7 @@ export default function Dashboard() {
                 <div key={order.id} className="flex items-center justify-between py-2 border-b last:border-0" data-testid={`card-order-${order.id}`}>
                   <div>
                     <p className="font-medium text-sm">#{order.id} — {order.customerName || "Walk-in"}</p>
-                    <p className="text-xs text-muted-foreground">{order.orderType}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleTimeString()}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs capitalize">{order.status}</Badge>

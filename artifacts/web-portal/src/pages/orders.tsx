@@ -102,8 +102,9 @@ function StatusDropdown({ orderId, currentStatus }: { orderId: number; currentSt
           toast({ title: t("Status Updated"), description: `${t("Order")} #${orderId} → ${t(newStatus.charAt(0).toUpperCase() + newStatus.slice(1))}` });
           queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
         },
-        onError: (err: { data?: { error?: string } }) => {
-          toast({ variant: "destructive", title: t("Error"), description: err?.data?.error ?? t("Failed to update status") });
+        onError: (err) => {
+          const e = err as unknown as { data?: { error?: string } };
+          toast({ variant: "destructive", title: t("Error"), description: e?.data?.error ?? t("Failed to update status") });
         },
       }
     );
@@ -132,9 +133,7 @@ export default function Orders() {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const orders = useListOrders({
-    params: statusFilter !== "all" ? { status: statusFilter } : undefined,
-  });
+  const orders = useListOrders(statusFilter !== "all" ? { status: statusFilter } : undefined);
 
   const filtered = (orders.data ?? []).filter((o) => {
     if (!search) return true;

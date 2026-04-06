@@ -91,6 +91,11 @@ export interface MenuItem {
   /** @nullable */
   descriptionUr?: string | null;
   price: string;
+  unit: string;
+  /** Owner-only field. Stripped from responses for non-owner roles. @nullable */
+  internalCost?: string | null;
+  /** @nullable */
+  defaultDiscountPct?: string | null;
   isAvailable: boolean;
   /** @nullable */
   imageUrl?: string | null;
@@ -105,6 +110,9 @@ export interface CreateMenuItemBody {
   description?: string;
   descriptionUr?: string;
   price: string;
+  unit?: string;
+  internalCost?: string;
+  defaultDiscountPct?: string;
   isAvailable?: boolean;
   imageUrl?: string;
 }
@@ -116,6 +124,9 @@ export interface UpdateMenuItemBody {
   description?: string;
   descriptionUr?: string;
   price?: string;
+  unit?: string;
+  internalCost?: string;
+  defaultDiscountPct?: string;
   isAvailable?: boolean;
   imageUrl?: string;
 }
@@ -145,6 +156,8 @@ export interface Order {
   /** @nullable */
   notes?: string | null;
   totalAmount: string;
+  discountAmount: string;
+  discountType: string;
   /** @nullable */
   paymentMethod?: string | null;
   createdAt: string;
@@ -185,6 +198,8 @@ export interface OrderItem {
   itemName: string;
   itemPrice: string;
   quantity: number;
+  unit: string;
+  discountAmount: string;
   subtotal: string;
 }
 
@@ -200,6 +215,8 @@ export interface OrderDetail {
   /** @nullable */
   notes?: string | null;
   totalAmount: string;
+  discountAmount: string;
+  discountType: string;
   /** @nullable */
   paymentMethod?: string | null;
   createdAt: string;
@@ -212,6 +229,8 @@ export interface CreateOrderItemInput {
   itemName: string;
   itemPrice: string;
   quantity: number;
+  unit?: string;
+  discountAmount?: string;
 }
 
 export interface CreateOrderBody {
@@ -220,6 +239,8 @@ export interface CreateOrderBody {
   customerPhone?: string;
   notes?: string;
   paymentMethod?: string;
+  discountAmount?: string;
+  discountType?: string;
   items: CreateOrderItemInput[];
 }
 

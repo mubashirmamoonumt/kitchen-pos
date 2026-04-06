@@ -11,8 +11,7 @@ import {
   useListSettings,
   getListOrdersQueryKey,
 } from "@workspace/api-client-react";
-import type { SettingsMap } from "@workspace/api-client-react";
-import type { CreateOrderResponseType } from "@workspace/api-zod";
+import type { SettingsMap, BillSummary } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +27,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Minus, Plus, ArrowLeft, Trash2, Tag, Receipt } from "lucide-react";
 import { Link } from "wouter";
 import { ReceiptContent } from "./bills";
+
+interface CreateOrderResponseType {
+  id: number;
+  status: string;
+  totalAmount: string;
+  discountAmount: string;
+  discountType: string;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  paymentMethod?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  items: Array<{
+    id: number;
+    orderId: number;
+    itemName: string;
+    itemPrice: string;
+    quantity: number;
+    unit: string;
+    discountAmount: string;
+    subtotal: string;
+  }>;
+  bill?: (BillSummary & { subtotal?: string | null; discount?: string | null; tax?: string | null }) | null;
+}
 
 const schema = z.object({
   orderType: z.enum(["dine-in", "takeaway", "delivery"]),
@@ -64,7 +87,7 @@ export default function NewOrder() {
   const [receiptOpen, setReceiptOpen] = useState(false);
 
   const categories = useListCategories();
-  const menuItems = useListMenuItems({ params: categoryId ? { categoryId, isAvailable: true } : { isAvailable: true } });
+  const menuItems = useListMenuItems(categoryId ? { categoryId, isAvailable: true } : { isAvailable: true });
   const customers = useListCustomers();
   const createOrder = useCreateOrder();
   const settingsQuery = useListSettings();
@@ -75,7 +98,7 @@ export default function NewOrder() {
     defaultValues: { orderType: "dine-in", paymentMethod: "cash", notes: "" },
   });
 
-  const addToCart = (item: { id: number; name: string; nameUr: string; price: string; unit?: string | null; defaultDiscountPct?: string | null }) => {
+  const addToCart = (item: { id: number; name: string; nameUr?: string | null; price: string; unit?: string | null; defaultDiscountPct?: string | null }) => {
     setCart((prev) => {
       const existing = prev.find((c) => c.menuItemId === item.id);
       if (existing) {
@@ -162,18 +185,20 @@ export default function NewOrder() {
         },
       },
       {
-        onSuccess: (data: CreateOrderResponseType) => {
+        onSuccess: (data) => {
           queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-          if (data?.bill) {
-            setReceiptBill(data);
+          const response = data as unknown as CreateOrderResponseType;
+          if (response?.bill) {
+            setReceiptBill(response);
             setReceiptOpen(true);
           } else {
             toast({ title: t("Order Created Successfully") });
             setLocation("/orders");
           }
         },
-        onError: (err: { data?: { error?: string } }) => {
-          toast({ variant: "destructive", title: t("Error"), description: err?.data?.error || t("Failed to create order") });
+        onError: (err) => {
+          const e = err as unknown as { data?: { error?: string } };
+          toast({ variant: "destructive", title: t("Error"), description: e?.data?.error || t("Failed to create order") });
         },
       }
     );
@@ -479,17 +504,18 @@ export default function NewOrder() {
           {receiptBill && (
             <div className="space-y-4">
               <ReceiptContent
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 b={{
-                  id: receiptBill.bill?.id,
+                  id: receiptBill.bill?.id ?? 0,
                   orderId: receiptBill.id,
-                  billNumber: receiptBill.bill?.billNumber,
-                  subtotal: receiptBill.bill?.subtotal,
-                  discount: receiptBill.bill?.discount,
-                  tax: receiptBill.bill?.tax,
-                  totalAmount: receiptBill.bill?.totalAmount,
+                  billNumber: (receiptBill.bill as { billNumber?: string | null } | null | undefined)?.billNumber,
+                  subtotal: (receiptBill.bill as { subtotal?: string | null } | null | undefined)?.subtotal,
+                  discount: (receiptBill.bill as { discount?: string | null } | null | undefined)?.discount,
+                  tax: (receiptBill.bill as { tax?: string | null } | null | undefined)?.tax,
+                  totalAmount: receiptBill.bill?.totalAmount ?? receiptBill.totalAmount ?? "0",
                   paymentMethod: receiptBill.paymentMethod ?? "cash",
-                  createdAt: receiptBill.bill?.createdAt ?? new Date().toISOString(),
-                  items: receiptBill.items?.map((i) => ({
+                  createdAt: String(receiptBill.bill?.createdAt ?? new Date().toISOString()),
+                  items: (receiptBill.items ?? []).map((i) => ({
                     id: i.id,
                     itemName: i.itemName,
                     quantity: i.quantity,
@@ -497,10 +523,18 @@ export default function NewOrder() {
                     subtotal: i.subtotal,
                   })),
                   order: {
+                    id: receiptBill.id,
+                    status: "delivered",
+                    totalAmount: receiptBill.totalAmount ?? "0",
+                    discountAmount: receiptBill.discountAmount ?? "0",
+                    discountType: receiptBill.discountType ?? "pkr",
+                    createdAt: String(receiptBill.createdAt ?? new Date().toISOString()),
+                    updatedAt: String(receiptBill.updatedAt ?? new Date().toISOString()),
                     customerName: receiptBill.customerName,
                     paymentMethod: receiptBill.paymentMethod,
                   },
-                }}
+                  deductions: [],
+                } as unknown as Parameters<typeof ReceiptContent>[0]["b"]}
                 settings={settings}
               />
               <div className="flex gap-2">

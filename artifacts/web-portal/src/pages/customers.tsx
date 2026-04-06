@@ -69,7 +69,7 @@ export default function Customers() {
   const [dialog, setDialog] = useState<{ open: boolean; editing?: any }>({ open: false });
   const [detailId, setDetailId] = useState<number | null>(null);
 
-  const customers = useListCustomers({ params: search ? { search } : undefined });
+  const customers = useListCustomers(search ? { search } : undefined);
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
   const deleteCustomer = useDeleteCustomer();

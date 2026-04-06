@@ -64,7 +64,7 @@ export default function Menu() {
   const [itemDialog, setItemDialog] = useState<{ open: boolean; editing?: any }>({ open: false });
 
   const categories = useListCategories();
-  const menuItems = useListMenuItems({ params: activeCategoryId ? { categoryId: activeCategoryId } : undefined });
+  const menuItems = useListMenuItems(activeCategoryId ? { categoryId: activeCategoryId } : undefined);
 
   const createCat = useCreateCategory();
   const updateCat = useUpdateCategory();

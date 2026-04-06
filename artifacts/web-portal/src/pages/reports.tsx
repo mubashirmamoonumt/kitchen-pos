@@ -53,12 +53,8 @@ export default function Reports() {
   }, {});
   const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
 
-  // Orders by type
-  const typeCounts = (allOrders.data ?? []).reduce((acc: Record<string, number>, o) => {
-    acc[o.orderType] = (acc[o.orderType] ?? 0) + 1;
-    return acc;
-  }, {});
-  const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
+  // Orders by status (type breakdown removed - orderType not available)
+  const typeData: { name: string; value: number }[] = [];
 
   // Payment method split
   const paymentCounts = (bills.data ?? []).reduce((acc: Record<string, number>, b) => {
@@ -86,7 +82,7 @@ export default function Reports() {
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)
         ) : (
           <>
-            <StatCard title={t("Today's Orders")} value={data?.todayOrders ?? 0} />
+            <StatCard title={t("Today's Orders")} value={data?.todayOrderCount ?? 0} />
             <StatCard title={t("Today's Revenue")} value={`PKR ${Number(data?.todayRevenue ?? 0).toLocaleString()}`} />
             <StatCard title={t("Total Bills")} value={bills.data?.length ?? 0} />
             <StatCard title={t("Avg. Order Value")} value={`PKR ${Math.round(avgOrderValue).toLocaleString()}`} />

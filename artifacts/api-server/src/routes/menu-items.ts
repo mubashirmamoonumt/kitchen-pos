@@ -11,8 +11,17 @@ import {
   ToggleMenuItemAvailabilityParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
+import type { Request } from "express";
 
 const router: IRouter = Router();
+
+type MenuItem = typeof menuItemsTable.$inferSelect;
+
+function sanitizeMenuItem(item: MenuItem, req: Request): Omit<MenuItem, "internalCost"> | MenuItem {
+  if (req.user?.role === "owner") return item;
+  const { internalCost: _ic, ...rest } = item;
+  return rest;
+}
 
 router.get("/menu-items", requireAuth, async (req, res): Promise<void> => {
   const query = ListMenuItemsQueryParams.safeParse(req.query);
@@ -34,11 +43,7 @@ router.get("/menu-items", requireAuth, async (req, res): Promise<void> => {
     .from(menuItemsTable)
     .where(and(...conditions));
 
-  const isOwner = req.user?.role === "owner";
-  const sanitized = isOwner
-    ? items
-    : items.map(({ internalCost: _ic, ...rest }) => rest);
-  res.json(sanitized);
+  res.json(items.map((item) => sanitizeMenuItem(item, req)));
 });
 
 router.post("/menu-items", requireAuth, async (req, res): Promise<void> => {
@@ -48,7 +53,7 @@ router.post("/menu-items", requireAuth, async (req, res): Promise<void> => {
     return;
   }
   const [item] = await db.insert(menuItemsTable).values(parsed.data).returning();
-  res.status(201).json(item);
+  res.status(201).json(sanitizeMenuItem(item, req));
 });
 
 router.get("/menu-items/:id", requireAuth, async (req, res): Promise<void> => {
@@ -65,13 +70,7 @@ router.get("/menu-items/:id", requireAuth, async (req, res): Promise<void> => {
     res.status(404).json({ error: "Menu item not found" });
     return;
   }
-  const isOwner = req.user?.role === "owner";
-  if (!isOwner) {
-    const { internalCost: _ic, ...rest } = item;
-    res.json(rest);
-    return;
-  }
-  res.json(item);
+  res.json(sanitizeMenuItem(item, req));
 });
 
 router.patch("/menu-items/:id/toggle-availability", requireAuth, async (req, res): Promise<void> => {
@@ -93,7 +92,7 @@ router.patch("/menu-items/:id/toggle-availability", requireAuth, async (req, res
     .set({ isAvailable: !existing.isAvailable })
     .where(and(eq(menuItemsTable.id, params.data.id), eq(menuItemsTable.isDeleted, false)))
     .returning();
-  res.json(item);
+  res.json(sanitizeMenuItem(item, req));
 });
 
 router.patch("/menu-items/:id", requireAuth, async (req, res): Promise<void> => {
@@ -116,7 +115,7 @@ router.patch("/menu-items/:id", requireAuth, async (req, res): Promise<void> => 
     res.status(404).json({ error: "Menu item not found" });
     return;
   }
-  res.json(item);
+  res.json(sanitizeMenuItem(item, req));
 });
 
 router.delete("/menu-items/:id", requireAuth, async (req, res): Promise<void> => {
