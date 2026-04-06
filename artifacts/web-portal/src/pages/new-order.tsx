@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Minus, Plus, ArrowLeft, Trash2, Tag, Receipt } from "lucide-react";
+import { Minus, Plus, ArrowLeft, Trash2, Tag, Receipt, X } from "lucide-react";
 import { Link } from "wouter";
 import { ReceiptContent } from "./bills";
 import type { ReceiptBillData } from "./bills";
@@ -477,6 +477,18 @@ export default function NewOrder() {
                         className="h-7 text-xs flex-1"
                         data-testid="input-discount-value"
                       />
+                      {(parseFloat(discountValue) > 0 || !!discountRuleName) && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => { setDiscountValue(""); setDiscountType("pkr"); setDiscountRuleName(undefined); }}
+                          data-testid="button-clear-discount"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
                     {orderDiscountAmt > 0 && (
                       <div className="flex justify-between text-xs text-green-600">
