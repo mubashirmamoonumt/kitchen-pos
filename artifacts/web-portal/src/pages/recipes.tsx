@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -45,7 +45,15 @@ function RecipeForm({ menuItemId, menuItemName, onClose }: { menuItemId: number;
   const qc = useQueryClient();
   const ingredientsList = useListIngredients();
   const existing = useGetRecipeByMenuItem(menuItemId, {
-    query: { enabled: !!menuItemId, queryKey: ["getRecipeByMenuItem", menuItemId] },
+    query: {
+      enabled: !!menuItemId,
+      queryKey: ["getRecipeByMenuItem", menuItemId],
+      retry: (failureCount, error: unknown) => {
+        const status = (error as { status?: number })?.status;
+        if (status === 404) return false;
+        return failureCount < 2;
+      },
+    },
   });
   const upsert = useUpsertRecipe();
 
@@ -63,6 +71,20 @@ function RecipeForm({ menuItemId, menuItemName, onClose }: { menuItemId: number;
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "ingredients" });
+
+  useEffect(() => {
+    if (existing.data) {
+      form.reset({
+        menuItemId,
+        instructions: existing.data.instructions ?? "",
+        ingredients: existing.data.ingredients?.map((i) => ({
+          ingredientId: i.ingredientId,
+          quantity: i.quantity,
+          unit: i.recipeUnit || "g",
+        })) ?? [{ ingredientId: 0, quantity: "", unit: "g" }],
+      });
+    }
+  }, [existing.data]);
 
   const onSubmit = (values: FormValues) => {
     upsert.mutate(
@@ -89,7 +111,7 @@ function RecipeForm({ menuItemId, menuItemName, onClose }: { menuItemId: number;
     );
   };
 
-  if (existing.isLoading) return <Skeleton className="h-64" />;
+  if (existing.isLoading && existing.fetchStatus !== "idle") return <Skeleton className="h-64" />;
 
   return (
     <Form {...form}>
