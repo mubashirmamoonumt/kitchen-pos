@@ -10,7 +10,14 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Supabase uses a certificate chain that Node's pg driver rejects by default.
+// Disable strict SSL verification when connecting to Supabase.
+const isSupabase = process.env.DATABASE_URL.includes("supabase.co");
+
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ...(isSupabase ? { ssl: { rejectUnauthorized: false } } : {}),
+});
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";

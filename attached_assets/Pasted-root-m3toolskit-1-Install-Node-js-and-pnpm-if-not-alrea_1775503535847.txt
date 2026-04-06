@@ -1,0 +1,228 @@
+root@m3toolskit:~# # 1. Install Node.js and pnpm (if not already installed)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+npm install -g pnpm
+
+# 2. Clone your GitHub repo
+git clone https://github.com/mubashirmamoonumt/kitchen-pos.git
+cd kitchen-pos
+
+# 3. Create .env file for the backend
+cat > artifacts/api-server/.env << 'EOF'
+DATABASE_URL=postgresql://postgres:Mufaz2024kitchen@db.cqowbsiivxnckpkupedn.supabase.co:5432/postgres?sslmode=require
+JWT_SECRET=MufazKitchen_SuperSecret_2024_POS!
+NODE_ENV=production
+PORT=3000
+EOF
+
+# 4. Install dependencies
+pnpm install
+
+# 5. Push schema to Supabase (creates all tables)
+DATABASE_URL=postgresql://postgres:Mufaz2024kitchen@db.cqowbsiivxnckpkupedn.supabase.co:5432/postgres?sslmode=require \
+  pnpm --filter @workspace/db run push-force
+
+# 6. Start the backend (with PM2 so it stays running)
+npm install -g pm2
+cd artifacts/api-server
+pm2 start "pnpm run dev" --name mufaz-api
+pm2 save
+pm2 startup
+2026-04-06 19:24:06 - Installing pre-requisites
+Get:1 file:/etc/apt/mirrors/debian.list Mirrorlist [30 B]
+Get:2 file:/etc/apt/mirrors/debian-security.list Mirrorlist [39 B]
+Hit:7 https://deb.nodesource.com/node_20.x nodistro InRelease
+Hit:8 https://download.docker.com/linux/debian bookworm InRelease
+Hit:3 https://deb.debian.org/debian bookworm InRelease
+Hit:4 https://deb.debian.org/debian bookworm-updates InRelease
+Hit:5 https://deb.debian.org/debian bookworm-backports InRelease
+Hit:6 https://deb.debian.org/debian-security bookworm-security InRelease
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+2 packages can be upgraded. Run 'apt list --upgradable' to see them.
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+apt-transport-https is already the newest version (2.6.1).
+ca-certificates is already the newest version (20230311+deb12u1).
+curl is already the newest version (7.88.1-10+deb12u14).
+gnupg is already the newest version (2.2.40-1.1+deb12u2).
+The following packages were automatically installed and are no longer required:
+  criu libnet1 libnl-3-200 libprotobuf32 python3-protobuf tini
+Use 'sudo apt autoremove' to remove them.
+0 upgraded, 0 newly installed, 0 to remove and 2 not upgraded.
+Get:1 file:/etc/apt/mirrors/debian.list Mirrorlist [30 B]
+Get:2 file:/etc/apt/mirrors/debian-security.list Mirrorlist [39 B]
+Hit:7 https://deb.nodesource.com/node_20.x nodistro InRelease
+Hit:8 https://download.docker.com/linux/debian bookworm InRelease
+Hit:3 https://deb.debian.org/debian bookworm InRelease
+Hit:4 https://deb.debian.org/debian bookworm-updates InRelease
+Hit:5 https://deb.debian.org/debian bookworm-backports InRelease
+Hit:6 https://deb.debian.org/debian-security bookworm-security InRelease
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+2 packages can be upgraded. Run 'apt list --upgradable' to see them.
+2026-04-06 19:24:10 - Repository configured successfully.
+2026-04-06 19:24:10 - To install Node.js, run: apt install nodejs -y
+2026-04-06 19:24:10 - You can use N|solid Runtime as a node.js alternative
+2026-04-06 19:24:10 - To install N|solid Runtime, run: apt install nsolid -y
+
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following packages were automatically installed and are no longer required:
+  criu libnet1 libnl-3-200 libprotobuf32 python3-protobuf tini
+Use 'sudo apt autoremove' to remove them.
+The following packages will be upgraded:
+  nodejs
+1 upgraded, 0 newly installed, 0 to remove and 1 not upgraded.
+Need to get 32.2 MB of archives.
+After this operation, 438 kB disk space will be freed.
+Get:1 https://deb.nodesource.com/node_20.x nodistro/main amd64 nodejs amd64 20.20.2-1nodesource1 [32.2 MB]
+Fetched 32.2 MB in 1s (60.8 MB/s)
+apt-listchanges: Reading changelogs...
+(Reading database ... 190474 files and directories currently installed.)
+Preparing to unpack .../nodejs_20.20.2-1nodesource1_amd64.deb ...
+Detected old npm client, removing...
+Unpacking nodejs (20.20.2-1nodesource1) over (20.20.0-1nodesource1) ...
+Setting up nodejs (20.20.2-1nodesource1) ...
+Processing triggers for man-db (2.11.2-2) ...
+Scanning processes...
+Scanning candidates...
+Scanning linux images...
+
+
+Restarting services...
+ systemctl restart latex-api.service
+Service restarts being deferred:
+ /etc/needrestart/restart.d/dbus.service
+ systemctl restart getty@tty1.service
+ systemctl restart serial-getty@ttyS0.service
+ systemctl restart systemd-logind.service
+ systemctl restart unattended-upgrades.service
+
+No containers need to be restarted.
+
+User sessions running outdated binaries:
+ root @ session #12876: PM2 v6.0.14: Go[2569323]
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+
+changed 1 package in 1s
+
+1 package is looking for funding
+  run `npm fund` for details
+Cloning into 'kitchen-pos'...
+remote: Enumerating objects: 1033, done.
+remote: Counting objects: 100% (1033/1033), done.
+remote: Compressing objects: 100% (417/417), done.
+remote: Total 1033 (delta 579), reused 1033 (delta 579), pack-reused 0 (from 0)
+Receiving objects: 100% (1033/1033), 1.53 MiB | 15.34 MiB/s, done.
+Resolving deltas: 100% (579/579), done.
+Scope: all 10 workspace projects
+Lockfile is up to date, resolution step is skipped
+Packages: +1117
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 1117, reused 1091, downloaded 0, added 1117, done
+
+devDependencies:
++ prettier 3.8.1
++ typescript 5.9.3
+
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm…
+└─ Done in 18ms
+Done in 5.1s using pnpm v10.33.0
+
+> @workspace/db@0.0.0 push-force /root/kitchen-pos/lib/db
+> drizzle-kit push --force --config ./drizzle.config.ts && tsx ./src/migrations.ts
+
+Reading config file '/root/kitchen-pos/lib/db/drizzle.config.ts'
+Using 'pg' driver for database querying
+[⣷] Pulling schema from database...
+(node:2826404) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+[⣽] Pulling schema from database...
+Error: self-signed certificate in certificate chain
+    at /root/kitchen-pos/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Object.query (/root/kitchen-pos/node_modules/.pnpm/drizzle-kit@0.31.9/node_modules/drizzle-kit/bin.cjs:80623:26)
+    at async fromDatabase2 (/root/kitchen-pos/node_modules/.pnpm/drizzle-kit@0.31.9/node_modules/drizzle-kit/bin.cjs:19276:25) {
+  code: 'SELF_SIGNED_CERT_IN_CHAIN'
+}
+(node:2826444) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[db] Migration error: self-signed certificate in certificate chain
+/root/kitchen-pos/lib/db:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/db@0.0.0 push-force: `drizzle-kit push --force --config ./drizzle.config.ts && tsx ./src/migrations.ts`
+Exit status 1
+
+changed 133 packages in 8s
+
+13 packages are looking for funding
+  run `npm fund` for details
+[PM2] Starting /usr/bin/bash in fork_mode (1 instance)
+[PM2] Done.
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 3  │ mufaz-api          │ fork     │ 0    │ online    │ 0%       │ 4.0kb    │
+│ 0  │ whatsapp-backend   │ fork     │ 3    │ online    │ 0%       │ 129.2mb  │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+[PM2] Init System found: systemd
+Platform systemd
+Template
+[Unit]
+Description=PM2 process manager
+Documentation=https://pm2.keymetrics.io/
+After=network.target
+
+[Service]
+Type=forking
+User=root
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=PM2_HOME=/root/.pm2
+PIDFile=/root/.pm2/pm2.pid
+Restart=on-failure
+
+ExecStart=/usr/lib/node_modules/pm2/bin/pm2 resurrect
+ExecReload=/usr/lib/node_modules/pm2/bin/pm2 reload all
+ExecStop=/usr/lib/node_modules/pm2/bin/pm2 kill
+
+[Install]
+WantedBy=multi-user.target
+
+Target path
+/etc/systemd/system/pm2-root.service
+Command list
+[ 'systemctl enable pm2-root' ]
+[PM2] Writing init configuration in /etc/systemd/system/pm2-root.service
+[PM2] Making script booting at startup...
+[PM2] [-] Executing: systemctl enable pm2-root...
+[PM2] [v] Command successfully executed.
++---------------------------------------+
+[PM2] Freeze a process list on reboot via:
+$ pm2 save
+
+[PM2] Remove init script via:
+$ pm2 unstartup systemd
+root@m3toolskit:~/kitchen-pos/artifacts/api-server#

@@ -3,7 +3,13 @@ import pg from "pg";
 const { Client } = pg;
 
 async function runPostPushMigrations(): Promise<void> {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  const url = process.env.DATABASE_URL!;
+  const isSupabase = url.includes("supabase.co");
+
+  const client = new Client({
+    connectionString: url,
+    ...(isSupabase ? { ssl: { rejectUnauthorized: false } } : {}),
+  });
   await client.connect();
 
   try {
