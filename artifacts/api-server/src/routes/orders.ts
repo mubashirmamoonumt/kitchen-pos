@@ -343,7 +343,7 @@ router.patch("/orders/:id/status", requireAuth, async (req, res): Promise<void> 
     .where(eq(ordersTable.id, params.data.id))
     .returning();
 
-  if (parsed.data.status === "delivered") {
+  if (parsed.data.status === "delivered" && existing.status !== "delivered") {
     const orderItems = await db
       .select()
       .from(orderItemsTable)
@@ -365,49 +365,57 @@ router.patch("/orders/:id/status", requireAuth, async (req, res): Promise<void> 
       .where(and(eq(billsTable.orderId, order.id), eq(billsTable.isDeleted, false)));
 
     if (existingBill) {
-      for (const item of orderItems) {
-        if (!item.menuItemId) continue;
-        const [recipe] = await db
-          .select()
-          .from(recipesTable)
-          .where(and(eq(recipesTable.menuItemId, item.menuItemId), eq(recipesTable.isDeleted, false)));
-        if (!recipe) continue;
-        const recipeIngredients = await db
-          .select()
-          .from(recipeIngredientsTable)
-          .where(and(eq(recipeIngredientsTable.recipeId, recipe.id), eq(recipeIngredientsTable.isDeleted, false)));
+      const [alreadyDeducted] = await db
+        .select({ id: inventoryLogsTable.id })
+        .from(inventoryLogsTable)
+        .where(eq(inventoryLogsTable.billId, existingBill.id))
+        .limit(1);
 
-        for (const ri of recipeIngredients) {
-          const totalDeduct = parseFloat(ri.quantity) * item.quantity;
-          const lockedRows = await db.execute<{
-            id: number;
-            name: string;
-            stock_quantity: string;
-          }>(
-            sql`SELECT id, name, stock_quantity FROM ingredients WHERE id = ${ri.ingredientId} AND is_deleted = FALSE FOR UPDATE`
-          );
-          const ingredient = lockedRows.rows[0];
-          if (!ingredient) continue;
-          const before = parseFloat(ingredient.stock_quantity);
-          const after = Math.max(0, before - totalDeduct);
-          await db
-            .update(ingredientsTable)
-            .set({ stockQuantity: after.toFixed(4) })
-            .where(eq(ingredientsTable.id, ingredient.id));
-          inventoryEntries.push({
-            ingredientId: ingredient.id,
-            ingredientName: ingredient.name,
-            quantityBefore: before.toFixed(4),
-            quantityAfter: after.toFixed(4),
-            change: (-totalDeduct).toFixed(4),
-            reason: `Order #${order.id} delivered`,
-            billId: existingBill.id,
-          });
+      if (!alreadyDeducted) {
+        for (const item of orderItems) {
+          if (!item.menuItemId) continue;
+          const [recipe] = await db
+            .select()
+            .from(recipesTable)
+            .where(and(eq(recipesTable.menuItemId, item.menuItemId), eq(recipesTable.isDeleted, false)));
+          if (!recipe) continue;
+          const recipeIngredients = await db
+            .select()
+            .from(recipeIngredientsTable)
+            .where(and(eq(recipeIngredientsTable.recipeId, recipe.id), eq(recipeIngredientsTable.isDeleted, false)));
+
+          for (const ri of recipeIngredients) {
+            const totalDeduct = parseFloat(ri.quantity) * item.quantity;
+            const lockedRows = await db.execute<{
+              id: number;
+              name: string;
+              stock_quantity: string;
+            }>(
+              sql`SELECT id, name, stock_quantity FROM ingredients WHERE id = ${ri.ingredientId} AND is_deleted = FALSE FOR UPDATE`
+            );
+            const ingredient = lockedRows.rows[0];
+            if (!ingredient) continue;
+            const before = parseFloat(ingredient.stock_quantity);
+            const after = Math.max(0, before - totalDeduct);
+            await db
+              .update(ingredientsTable)
+              .set({ stockQuantity: after.toFixed(4) })
+              .where(eq(ingredientsTable.id, ingredient.id));
+            inventoryEntries.push({
+              ingredientId: ingredient.id,
+              ingredientName: ingredient.name,
+              quantityBefore: before.toFixed(4),
+              quantityAfter: after.toFixed(4),
+              change: (-totalDeduct).toFixed(4),
+              reason: `Order #${order.id} delivered`,
+              billId: existingBill.id,
+            });
+          }
         }
-      }
 
-      if (inventoryEntries.length > 0) {
-        await db.insert(inventoryLogsTable).values(inventoryEntries);
+        if (inventoryEntries.length > 0) {
+          await db.insert(inventoryLogsTable).values(inventoryEntries);
+        }
       }
     }
   }

@@ -102,7 +102,7 @@ function StatusDropdown({ orderId, currentStatus }: { orderId: number; currentSt
           toast({ title: t("Status Updated"), description: `${t("Order")} #${orderId} → ${t(newStatus.charAt(0).toUpperCase() + newStatus.slice(1))}` });
           queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
         },
-        onError: (err: any) => {
+        onError: (err: { data?: { error?: string } }) => {
           toast({ variant: "destructive", title: t("Error"), description: err?.data?.error ?? t("Failed to update status") });
         },
       }
@@ -202,7 +202,6 @@ export default function Orders() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold text-sm">#{order.id}</span>
-                      <span className="text-xs text-muted-foreground capitalize">{(order as any).orderType}</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{order.customerName || "Walk-in"}</span>

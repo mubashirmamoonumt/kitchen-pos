@@ -26,7 +26,7 @@ export const billItemsTable = pgTable("bill_items", {
     .notNull()
     .references(() => billsTable.id),
   itemName: text("item_name").notNull(),
-  quantity: integer("quantity").notNull(),
+  quantity: numeric("quantity", { precision: 12, scale: 4 }).notNull(),
   unitPrice: numeric("unit_price", { precision: 10, scale: 2 }).notNull(),
   subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull(),
   isDeleted: boolean("is_deleted").notNull().default(false),

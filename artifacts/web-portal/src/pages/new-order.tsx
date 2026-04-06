@@ -38,6 +38,8 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+const WEIGHTED_UNITS = ["kg", "g", "litre"];
+
 interface CartItem {
   menuItemId: number;
   name: string;
@@ -99,9 +101,22 @@ export default function NewOrder() {
 
   const updateQty = (menuItemId: number, delta: number) => {
     setCart((prev) => {
-      const updated = prev.map((c) => c.menuItemId === menuItemId ? { ...c, quantity: Math.max(0, c.quantity + delta) } : c);
+      const updated = prev.map((c) => {
+        if (c.menuItemId !== menuItemId) return c;
+        const step = WEIGHTED_UNITS.includes(c.unit) ? 0.1 : 1;
+        const newQty = Math.max(0, parseFloat((c.quantity + delta * step).toFixed(3)));
+        return { ...c, quantity: newQty };
+      });
       return updated.filter((c) => c.quantity > 0);
     });
+  };
+
+  const setQtyDirect = (menuItemId: number, value: string) => {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed) || parsed < 0) return;
+    setCart((prev) =>
+      prev.map((c) => c.menuItemId === menuItemId ? { ...c, quantity: parsed } : c).filter((c) => c.quantity > 0)
+    );
   };
 
   const subtotal = cart.reduce((sum, c) => {
@@ -266,7 +281,15 @@ export default function NewOrder() {
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQty(item.menuItemId, -1)}>
                               <Minus className="w-3 h-3" />
                             </Button>
-                            <span className="text-sm w-4 text-center">{item.quantity}</span>
+                            <Input
+                              type="number"
+                              min="0"
+                              step={WEIGHTED_UNITS.includes(item.unit) ? "0.1" : "1"}
+                              value={item.quantity}
+                              onChange={(e) => setQtyDirect(item.menuItemId, e.target.value)}
+                              className="h-6 text-xs w-16 px-1 text-center"
+                              data-testid={`input-qty-${item.menuItemId}`}
+                            />
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQty(item.menuItemId, 1)}>
                               <Plus className="w-3 h-3" />
                             </Button>
