@@ -114,7 +114,7 @@ router.post("/bills", requireAuth, requireOwner, async (req, res): Promise<void>
           .where(and(eq(recipeIngredientsTable.recipeId, recipe.id), eq(recipeIngredientsTable.isDeleted, false)));
 
         for (const ri of recipeIngredients) {
-          const totalDeduct = parseFloat(ri.quantity) * item.quantity;
+          const totalDeduct = parseFloat(ri.quantity) * parseFloat(String(item.quantity));
 
           const lockedRows = await tx.execute<{
             id: number;

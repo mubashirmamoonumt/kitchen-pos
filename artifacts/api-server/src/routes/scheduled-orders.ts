@@ -237,7 +237,7 @@ router.post("/scheduled-orders/:id/convert", requireAuth, async (req, res): Prom
                 menuItemId: item.menuItemId,
                 itemName: item.itemName,
                 itemPrice: item.unitPrice,
-                quantity: item.quantity,
+                quantity: String(item.quantity),
                 subtotal: (parseFloat(item.unitPrice) * item.quantity).toFixed(2),
               }))
             )

@@ -209,7 +209,7 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
             menuItemId: item.menuItemId,
             itemName: item.itemName,
             itemPrice: item.itemPrice,
-            quantity: item.quantity,
+            quantity: String(item.quantity),
             unit: item.unit ?? "qty",
             discountAmount: item.itemDisc.toFixed(2),
             subtotal: item.lineTotal.toFixed(2),
@@ -385,7 +385,7 @@ router.patch("/orders/:id/status", requireAuth, async (req, res): Promise<void> 
             .where(and(eq(recipeIngredientsTable.recipeId, recipe.id), eq(recipeIngredientsTable.isDeleted, false)));
 
           for (const ri of recipeIngredients) {
-            const totalDeduct = parseFloat(ri.quantity) * item.quantity;
+            const totalDeduct = parseFloat(ri.quantity) * parseFloat(String(item.quantity));
             const lockedRows = await db.execute<{
               id: number;
               name: string;

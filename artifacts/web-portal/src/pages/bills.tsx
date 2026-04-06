@@ -39,11 +39,13 @@ interface ExtendedBillSummary extends BillSummary {
   customerName?: string | null;
 }
 
+export type ReceiptBillData = ExtendedBillDetail;
+
 export function ReceiptContent({
   b,
   settings,
 }: {
-  b: ExtendedBillDetail;
+  b: ReceiptBillData;
   settings: SettingsMap;
 }) {
   const { t } = useLanguage();

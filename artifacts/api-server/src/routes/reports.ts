@@ -103,7 +103,7 @@ router.get("/reports/top-items", requireAuth, requireOwner, async (req, res): Pr
         totalRevenue: 0,
       };
     }
-    byItem[item.itemName].totalQuantity += item.quantity;
+    byItem[item.itemName].totalQuantity += parseFloat(String(item.quantity));
     byItem[item.itemName].totalRevenue += parseFloat(item.subtotal);
   }
 

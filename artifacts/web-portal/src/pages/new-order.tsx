@@ -11,7 +11,7 @@ import {
   useListSettings,
   getListOrdersQueryKey,
 } from "@workspace/api-client-react";
-import type { SettingsMap, BillSummary } from "@workspace/api-client-react";
+import type { SettingsMap, BillItem, Order } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Minus, Plus, ArrowLeft, Trash2, Tag, Receipt } from "lucide-react";
 import { Link } from "wouter";
 import { ReceiptContent } from "./bills";
+import type { ReceiptBillData } from "./bills";
 
 interface CreateOrderResponseType {
   id: number;
@@ -37,8 +38,8 @@ interface CreateOrderResponseType {
   customerName?: string | null;
   customerPhone?: string | null;
   paymentMethod?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | string;
+  updatedAt: Date | string;
   items: Array<{
     id: number;
     orderId: number;
@@ -49,7 +50,51 @@ interface CreateOrderResponseType {
     discountAmount: string;
     subtotal: string;
   }>;
-  bill?: (BillSummary & { subtotal?: string | null; discount?: string | null; tax?: string | null }) | null;
+  bill?: {
+    id: number;
+    totalAmount?: string | null;
+    billNumber?: string | null;
+    subtotal?: string | null;
+    discount?: string | null;
+    tax?: string | null;
+    createdAt?: Date | string;
+  } | null;
+}
+
+function buildReceiptBillData(response: CreateOrderResponseType): ReceiptBillData {
+  const billItems: BillItem[] = (response.items ?? []).map((i) => ({
+    id: i.id,
+    billId: response.bill?.id ?? 0,
+    itemName: i.itemName,
+    quantity: i.quantity,
+    unitPrice: i.itemPrice,
+    subtotal: i.subtotal,
+  }));
+  const order: Order = {
+    id: response.id,
+    status: response.status,
+    totalAmount: response.totalAmount,
+    discountAmount: response.discountAmount,
+    discountType: response.discountType,
+    customerName: response.customerName,
+    paymentMethod: response.paymentMethod,
+    createdAt: String(response.createdAt),
+    updatedAt: String(response.updatedAt),
+  };
+  return {
+    id: response.bill?.id ?? 0,
+    orderId: response.id,
+    billNumber: response.bill?.billNumber,
+    subtotal: response.bill?.subtotal,
+    discount: response.bill?.discount,
+    tax: response.bill?.tax,
+    totalAmount: response.bill?.totalAmount ?? response.totalAmount,
+    paymentMethod: response.paymentMethod ?? "cash",
+    createdAt: String(response.bill?.createdAt ?? new Date().toISOString()),
+    items: billItems,
+    order,
+    deductions: [],
+  };
 }
 
 const schema = z.object({
@@ -71,7 +116,8 @@ interface CartItem {
   quantity: number;
   unit: string;
   defaultDiscountPct: string;
-  itemDiscountPct: string;
+  itemDiscountValue: string;
+  itemDiscountType: "pct" | "pkr";
 }
 
 export default function NewOrder() {
@@ -113,13 +159,14 @@ export default function NewOrder() {
         quantity: 1,
         unit: item.unit ?? "qty",
         defaultDiscountPct: defaultPct,
-        itemDiscountPct: defaultPct,
+        itemDiscountValue: defaultPct,
+        itemDiscountType: "pct",
       }];
     });
   };
 
-  const updateItemDiscount = (menuItemId: number, pct: string) => {
-    setCart((prev) => prev.map((c) => c.menuItemId === menuItemId ? { ...c, itemDiscountPct: pct } : c));
+  const updateItemDiscount = (menuItemId: number, value: string, type?: "pct" | "pkr") => {
+    setCart((prev) => prev.map((c) => c.menuItemId === menuItemId ? { ...c, itemDiscountValue: value, ...(type ? { itemDiscountType: type } : {}) } : c));
   };
 
   const updateQty = (menuItemId: number, delta: number) => {
@@ -144,8 +191,9 @@ export default function NewOrder() {
 
   const subtotal = cart.reduce((sum, c) => {
     const gross = parseFloat(c.price) * c.quantity;
-    const discPct = parseFloat(c.itemDiscountPct || "0");
-    return sum + gross - (gross * discPct) / 100;
+    const discVal = parseFloat(c.itemDiscountValue || "0");
+    const itemDisc = c.itemDiscountType === "pct" ? (gross * discVal) / 100 : Math.min(discVal, gross);
+    return sum + gross - itemDisc;
   }, 0);
 
   let orderDiscountAmt = 0;
@@ -171,8 +219,10 @@ export default function NewOrder() {
           discountType: orderDiscountAmt > 0 ? discountType : undefined,
           items: cart.map((c) => {
             const gross = parseFloat(c.price) * c.quantity;
-            const pct = parseFloat(c.itemDiscountPct || "0");
-            const itemDisc = pct > 0 ? (gross * pct) / 100 : 0;
+            const discVal = parseFloat(c.itemDiscountValue || "0");
+            const itemDisc = discVal > 0
+              ? (c.itemDiscountType === "pct" ? (gross * discVal) / 100 : Math.min(discVal, gross))
+              : 0;
             return {
               menuItemId: c.menuItemId,
               quantity: c.quantity,
@@ -292,8 +342,10 @@ export default function NewOrder() {
                 <>
                   {cart.map((item) => {
                     const gross = parseFloat(item.price) * item.quantity;
-                    const pct = parseFloat(item.itemDiscountPct || "0");
-                    const itemDiscount = pct > 0 ? (gross * pct) / 100 : 0;
+                    const discVal = parseFloat(item.itemDiscountValue || "0");
+                    const itemDiscount = discVal > 0
+                      ? (item.itemDiscountType === "pct" ? (gross * discVal) / 100 : Math.min(discVal, gross))
+                      : 0;
                     const lineTotal = gross - itemDiscount;
                     return (
                       <div key={item.menuItemId} className="space-y-1 pb-1 border-b last:border-0" data-testid={`cart-item-${item.menuItemId}`}>
@@ -327,13 +379,25 @@ export default function NewOrder() {
                           </Button>
                         </div>
                         <div className="flex items-center gap-1 pl-0.5">
-                          <span className="text-xs text-muted-foreground w-16">{t("Item disc")}%:</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{t("Disc")}:</span>
+                          <Select
+                            value={item.itemDiscountType}
+                            onValueChange={(v) => updateItemDiscount(item.menuItemId, item.itemDiscountValue, v as "pct" | "pkr")}
+                          >
+                            <SelectTrigger className="h-5 text-xs w-14 px-1" data-testid={`select-item-disc-type-${item.menuItemId}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pct">%</SelectItem>
+                              <SelectItem value="pkr">PKR</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <Input
                             type="number"
                             min="0"
-                            max="100"
+                            max={item.itemDiscountType === "pct" ? "100" : undefined}
                             step="0.1"
-                            value={item.itemDiscountPct}
+                            value={item.itemDiscountValue}
                             onChange={(e) => updateItemDiscount(item.menuItemId, e.target.value)}
                             className="h-5 text-xs w-16 px-1"
                             data-testid={`input-item-discount-${item.menuItemId}`}
@@ -504,37 +568,7 @@ export default function NewOrder() {
           {receiptBill && (
             <div className="space-y-4">
               <ReceiptContent
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                b={{
-                  id: receiptBill.bill?.id ?? 0,
-                  orderId: receiptBill.id,
-                  billNumber: (receiptBill.bill as { billNumber?: string | null } | null | undefined)?.billNumber,
-                  subtotal: (receiptBill.bill as { subtotal?: string | null } | null | undefined)?.subtotal,
-                  discount: (receiptBill.bill as { discount?: string | null } | null | undefined)?.discount,
-                  tax: (receiptBill.bill as { tax?: string | null } | null | undefined)?.tax,
-                  totalAmount: receiptBill.bill?.totalAmount ?? receiptBill.totalAmount ?? "0",
-                  paymentMethod: receiptBill.paymentMethod ?? "cash",
-                  createdAt: String(receiptBill.bill?.createdAt ?? new Date().toISOString()),
-                  items: (receiptBill.items ?? []).map((i) => ({
-                    id: i.id,
-                    itemName: i.itemName,
-                    quantity: i.quantity,
-                    unitPrice: i.itemPrice,
-                    subtotal: i.subtotal,
-                  })),
-                  order: {
-                    id: receiptBill.id,
-                    status: "delivered",
-                    totalAmount: receiptBill.totalAmount ?? "0",
-                    discountAmount: receiptBill.discountAmount ?? "0",
-                    discountType: receiptBill.discountType ?? "pkr",
-                    createdAt: String(receiptBill.createdAt ?? new Date().toISOString()),
-                    updatedAt: String(receiptBill.updatedAt ?? new Date().toISOString()),
-                    customerName: receiptBill.customerName,
-                    paymentMethod: receiptBill.paymentMethod,
-                  },
-                  deductions: [],
-                } as unknown as Parameters<typeof ReceiptContent>[0]["b"]}
+                b={buildReceiptBillData(receiptBill)}
                 settings={settings}
               />
               <div className="flex gap-2">

@@ -24,7 +24,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 export function Layout({ children }: { children: React.ReactNode }) {
   const [, setLocation] = useLocation();
   const { language, setLanguage, t } = useLanguage();
-  const { data: user, isLoading, error } = useGetMe({ query: { retry: false } });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: user, isLoading, error } = useGetMe({ query: { retry: false } as any });
   const logoutMutation = useLogout();
 
   useEffect(() => {
