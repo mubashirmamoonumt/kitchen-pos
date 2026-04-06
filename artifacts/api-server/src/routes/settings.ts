@@ -153,6 +153,10 @@ router.delete("/settings/users/:id", requireAuth, requireOwner, async (req, res)
     res.status(400).json({ error: params.error.message });
     return;
   }
+  if (req.user && params.data.id === req.user.id) {
+    res.status(400).json({ error: "You cannot delete your own account" });
+    return;
+  }
   const [user] = await db
     .update(usersTable)
     .set({ isDeleted: true })

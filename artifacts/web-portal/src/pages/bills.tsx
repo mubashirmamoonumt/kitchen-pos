@@ -139,25 +139,21 @@ export function ReceiptContent({
   );
 }
 
-function BillDetail({ billId }: { billId: number }) {
+function BillDetailActions({ billId, receiptRef }: { billId: number; receiptRef: React.RefObject<HTMLDivElement | null> }) {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const receiptRef = useRef<HTMLDivElement>(null);
   const bill = useGetBill(billId, { query: { enabled: !!billId, queryKey: ["getBill", billId] } });
   const settingsQuery = useListSettings();
 
-  const settings: SettingsMap = settingsQuery.data ?? {};
-  const b = bill.data as ExtendedBillDetail | undefined;
+  if (bill.isLoading || settingsQuery.isLoading) return <Skeleton className="h-64" />;
 
-  const handleDownloadImage = useCallback(async () => {
-    if (!receiptRef.current) return;
+  const handleDownloadImage = async () => {
+    const el = receiptRef.current;
+    if (!el) return;
     try {
       const domtoimage = (await import("dom-to-image-more")).default;
-      const dataUrl = await domtoimage.toPng(receiptRef.current, {
-        bgcolor: "#ffffff",
-        scale: 2,
-      });
+      const dataUrl = await domtoimage.toPng(el, { bgcolor: "#ffffff", scale: 2 });
       const link = document.createElement("a");
       link.download = `receipt-${billId}.png`;
       link.href = dataUrl;
@@ -165,19 +161,19 @@ function BillDetail({ billId }: { billId: number }) {
     } catch {
       toast({ variant: "destructive", title: t("Error"), description: t("Failed to download image") });
     }
-  }, [billId, toast, t]);
+  };
 
-  const handleDownloadPdf = useCallback(() => {
+  const handleDownloadPdf = () => {
     navigate(`/bills/${billId}/print`);
-  }, [billId, navigate]);
+  };
 
-  if (bill.isLoading || settingsQuery.isLoading) return <Skeleton className="h-64" />;
-  if (!b) return null;
+  const b = bill.data as ExtendedBillDetail | undefined;
+  const settings: SettingsMap = settingsQuery.data ?? {};
 
   return (
     <div className="space-y-4">
-      <div ref={receiptRef} className="bg-white p-4 rounded">
-        <ReceiptContent b={b} settings={settings} />
+      <div className="bg-white p-4 rounded">
+        {b && <ReceiptContent b={b} settings={settings} />}
       </div>
       <div className="flex gap-2 pt-1">
         <Button variant="outline" size="sm" className="flex-1" onClick={handleDownloadImage} data-testid="button-download-image">
@@ -193,12 +189,30 @@ function BillDetail({ billId }: { billId: number }) {
   );
 }
 
+function PersistentReceipt({ billId, receiptRef }: { billId: number | null; receiptRef: React.RefObject<HTMLDivElement | null> }) {
+  const bill = useGetBill(billId ?? 0, { query: { enabled: !!billId, queryKey: ["getBill", billId] } });
+  const settingsQuery = useListSettings();
+  const b = bill.data as ExtendedBillDetail | undefined;
+  const settings: SettingsMap = settingsQuery.data ?? {};
+
+  return (
+    <div
+      ref={receiptRef}
+      aria-hidden="true"
+      style={{ position: "absolute", left: "-9999px", top: 0, width: "320px", backgroundColor: "#ffffff", padding: "16px" }}
+    >
+      {billId && b && <ReceiptContent b={b} settings={settings} />}
+    </div>
+  );
+}
+
 export default function Bills() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedBillId, setSelectedBillId] = useState<number | null>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
   const [generateForOrderId, setGenerateForOrderId] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
 
@@ -329,10 +343,13 @@ export default function Bills() {
         </div>
       )}
 
+      {/* Persistent off-screen receipt element — always mounted so dom-to-image-more can reliably target it */}
+      <PersistentReceipt billId={selectedBillId} receiptRef={receiptRef} />
+
       <Dialog open={!!selectedBillId} onOpenChange={(open) => { if (!open) setSelectedBillId(null); }}>
         <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("Invoice")}</DialogTitle></DialogHeader>
-          {selectedBillId && <BillDetail billId={selectedBillId} />}
+          {selectedBillId && <BillDetailActions billId={selectedBillId} receiptRef={receiptRef} />}
         </DialogContent>
       </Dialog>
     </div>
