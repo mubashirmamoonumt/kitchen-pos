@@ -11,6 +11,7 @@ import {
   useListSettings,
   useUpdateSettings,
   getListSettingsQueryKey,
+  getListUsersQueryKey,
   useListDiscountRules,
   useCreateDiscountRule,
   useUpdateDiscountRule,
@@ -41,7 +42,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Moon, Sun, Languages, User, Receipt, Pencil, Trash2, Tag, AlertTriangle } from "lucide-react";
+import { Plus, Moon, Sun, Languages, User, Receipt, Pencil, Trash2, Tag, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 
 const pinSchema = z.object({
   currentPassword: z.string().min(1),
@@ -99,6 +100,7 @@ export default function Settings() {
   const [deleteDiscountTarget, setDeleteDiscountTarget] = useState<DiscountRule | null>(null);
   const [clearConfirmText, setClearConfirmText] = useState("");
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [dangerZoneOpen, setDangerZoneOpen] = useState(false);
 
   const me = useGetMe();
   const users = useListUsers();
@@ -222,7 +224,7 @@ export default function Settings() {
       {
         onSuccess: () => {
           toast({ title: t("User Created") });
-          qc.invalidateQueries({ queryKey: ["listUsers"] });
+          qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
           setUserDialog(false);
           userForm.reset();
         },
@@ -242,7 +244,7 @@ export default function Settings() {
       {
         onSuccess: () => {
           toast({ title: t("User Updated") });
-          qc.invalidateQueries({ queryKey: ["listUsers"] });
+          qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
           setEditUserDialog(null);
         },
         onError: (err: UpdateUserMutationError) => {
@@ -259,7 +261,7 @@ export default function Settings() {
       {
         onSuccess: () => {
           toast({ title: t("User Deleted") });
-          qc.invalidateQueries({ queryKey: ["listUsers"] });
+          qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
           setDeleteUserTarget(null);
         },
         onError: () => {
@@ -609,31 +611,39 @@ export default function Settings() {
               </div>
             )}
 
-            {/* Danger Zone */}
+            {/* Danger Zone — collapsible */}
             <Card className="border-destructive/50 mt-6">
-              <CardHeader>
-                <CardTitle className="text-base text-destructive flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" />
-                  {t("Danger Zone")}
-                </CardTitle>
+              <CardHeader
+                className="cursor-pointer select-none"
+                onClick={() => setDangerZoneOpen((o) => !o)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base text-destructive flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    {t("Danger Zone")}
+                  </CardTitle>
+                  {dangerZoneOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                </div>
                 <CardDescription>{t("Irreversible actions — proceed with caution")}</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">{t("Clear All Orders & Logs")}</p>
-                    <p className="text-xs text-muted-foreground">{t("Permanently clears all orders, bills, inventory logs, and scheduled orders. Cannot be undone.")}</p>
+              {dangerZoneOpen && (
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{t("Clear All Orders & Logs")}</p>
+                      <p className="text-xs text-muted-foreground">{t("Permanently clears all orders, bills, inventory logs, and scheduled orders. Cannot be undone.")}</p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); setClearConfirmText(""); setClearDialogOpen(true); }}
+                      data-testid="button-clear-data"
+                    >
+                      {t("Clear Data")}
+                    </Button>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => { setClearConfirmText(""); setClearDialogOpen(true); }}
-                    data-testid="button-clear-data"
-                  >
-                    {t("Clear Data")}
-                  </Button>
-                </div>
-              </CardContent>
+                </CardContent>
+              )}
             </Card>
           </TabsContent>
         )}
