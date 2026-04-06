@@ -4,7 +4,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/lib/i18n";
 import { Layout } from "@/components/layout";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
+
+// In production the build injects VITE_API_BASE_URL so the frontend can
+// reach the backend on a different domain (e.g. posapi.m3toolskit.shop).
+// In development it is left empty and requests go to the same origin.
+if (import.meta.env.VITE_API_BASE_URL) {
+  setBaseUrl(import.meta.env.VITE_API_BASE_URL);
+}
 
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
