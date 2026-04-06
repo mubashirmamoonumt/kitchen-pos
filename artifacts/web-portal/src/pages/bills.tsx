@@ -96,7 +96,7 @@ export function ReceiptContent({
           return (
             <div key={item.id} className="grid text-xs" style={{ gridTemplateColumns: "1fr auto auto auto" }} data-testid={`row-bill-item-${item.id}`}>
               <span className="truncate pr-1">{item.itemName}</span>
-              <span className="text-right pr-2">{Number(item.quantity)}</span>
+              <span className="text-right pr-[60px]">{Number(item.quantity)}</span>
               <span className="text-right pr-2 text-green-600">{itemDisc > 0 ? `-${itemDisc.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</span>
               <span className="text-right">PKR {itemSubtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             </div>
