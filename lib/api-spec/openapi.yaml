@@ -1719,6 +1719,7 @@ components:
           type: string
         discountType:
           type: string
+          enum: [pct, pkr]
         paymentMethod:
           type: ["string", "null"]
         createdAt:
@@ -1757,6 +1758,7 @@ components:
           type: string
         discountType:
           type: string
+          enum: [pct, pkr]
         paymentMethod:
           type: ["string", "null"]
         createdAt:
@@ -1818,6 +1820,7 @@ components:
           type: string
         discountType:
           type: string
+          enum: [pct, pkr]
         items:
           type: array
           items:

@@ -157,7 +157,7 @@ export interface Order {
   notes?: string | null;
   totalAmount: string;
   discountAmount: string;
-  discountType: string;
+  discountType: "pct" | "pkr";
   /** @nullable */
   paymentMethod?: string | null;
   createdAt: string;
@@ -216,7 +216,7 @@ export interface OrderDetail {
   notes?: string | null;
   totalAmount: string;
   discountAmount: string;
-  discountType: string;
+  discountType: "pct" | "pkr";
   /** @nullable */
   paymentMethod?: string | null;
   createdAt: string;
@@ -240,7 +240,7 @@ export interface CreateOrderBody {
   notes?: string;
   paymentMethod?: string;
   discountAmount?: string;
-  discountType?: string;
+  discountType?: "pct" | "pkr";
   items: CreateOrderItemInput[];
 }
 

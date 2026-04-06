@@ -337,88 +337,92 @@ router.patch("/orders/:id/status", requireAuth, async (req, res): Promise<void> 
     updateData.paymentMethod = parsed.data.paymentMethod;
   }
 
-  const [order] = await db
-    .update(ordersTable)
-    .set(updateData)
-    .where(eq(ordersTable.id, params.data.id))
-    .returning();
+  const order = await db.transaction(async (tx) => {
+    const [updatedOrder] = await tx
+      .update(ordersTable)
+      .set(updateData)
+      .where(eq(ordersTable.id, params.data.id))
+      .returning();
 
-  if (parsed.data.status === "delivered" && existing.status !== "delivered") {
-    const orderItems = await db
-      .select()
-      .from(orderItemsTable)
-      .where(and(eq(orderItemsTable.orderId, order.id), eq(orderItemsTable.isDeleted, false)));
+    if (parsed.data.status === "delivered" && existing.status !== "delivered") {
+      const orderItems = await tx
+        .select()
+        .from(orderItemsTable)
+        .where(and(eq(orderItemsTable.orderId, updatedOrder.id), eq(orderItemsTable.isDeleted, false)));
 
-    const inventoryEntries: Array<{
-      ingredientId: number;
-      ingredientName: string;
-      quantityBefore: string;
-      quantityAfter: string;
-      change: string;
-      reason: string;
-      billId: number;
-    }> = [];
+      const inventoryEntries: Array<{
+        ingredientId: number;
+        ingredientName: string;
+        quantityBefore: string;
+        quantityAfter: string;
+        change: string;
+        reason: string;
+        billId: number;
+      }> = [];
 
-    const [existingBill] = await db
-      .select()
-      .from(billsTable)
-      .where(and(eq(billsTable.orderId, order.id), eq(billsTable.isDeleted, false)));
+      const [existingBill] = await tx
+        .select()
+        .from(billsTable)
+        .where(and(eq(billsTable.orderId, updatedOrder.id), eq(billsTable.isDeleted, false)));
 
-    if (existingBill) {
-      const [alreadyDeducted] = await db
-        .select({ id: inventoryLogsTable.id })
-        .from(inventoryLogsTable)
-        .where(eq(inventoryLogsTable.billId, existingBill.id))
-        .limit(1);
+      if (existingBill) {
+        const [alreadyDeducted] = await tx
+          .select({ id: inventoryLogsTable.id })
+          .from(inventoryLogsTable)
+          .where(eq(inventoryLogsTable.billId, existingBill.id))
+          .limit(1);
 
-      if (!alreadyDeducted) {
-        for (const item of orderItems) {
-          if (!item.menuItemId) continue;
-          const [recipe] = await db
-            .select()
-            .from(recipesTable)
-            .where(and(eq(recipesTable.menuItemId, item.menuItemId), eq(recipesTable.isDeleted, false)));
-          if (!recipe) continue;
-          const recipeIngredients = await db
-            .select()
-            .from(recipeIngredientsTable)
-            .where(and(eq(recipeIngredientsTable.recipeId, recipe.id), eq(recipeIngredientsTable.isDeleted, false)));
+        if (!alreadyDeducted) {
+          for (const item of orderItems) {
+            if (!item.menuItemId) continue;
+            const [recipe] = await tx
+              .select()
+              .from(recipesTable)
+              .where(and(eq(recipesTable.menuItemId, item.menuItemId), eq(recipesTable.isDeleted, false)));
+            if (!recipe) continue;
+            const recipeIngredients = await tx
+              .select()
+              .from(recipeIngredientsTable)
+              .where(and(eq(recipeIngredientsTable.recipeId, recipe.id), eq(recipeIngredientsTable.isDeleted, false)));
 
-          for (const ri of recipeIngredients) {
-            const totalDeduct = parseFloat(ri.quantity) * parseFloat(String(item.quantity));
-            const lockedRows = await db.execute<{
-              id: number;
-              name: string;
-              stock_quantity: string;
-            }>(
-              sql`SELECT id, name, stock_quantity FROM ingredients WHERE id = ${ri.ingredientId} AND is_deleted = FALSE FOR UPDATE`
-            );
-            const ingredient = lockedRows.rows[0];
-            if (!ingredient) continue;
-            const before = parseFloat(ingredient.stock_quantity);
-            const after = Math.max(0, before - totalDeduct);
-            await db
-              .update(ingredientsTable)
-              .set({ stockQuantity: after.toFixed(4) })
-              .where(eq(ingredientsTable.id, ingredient.id));
-            inventoryEntries.push({
-              ingredientId: ingredient.id,
-              ingredientName: ingredient.name,
-              quantityBefore: before.toFixed(4),
-              quantityAfter: after.toFixed(4),
-              change: (-totalDeduct).toFixed(4),
-              reason: `Order #${order.id} delivered`,
-              billId: existingBill.id,
-            });
+            for (const ri of recipeIngredients) {
+              const totalDeduct = parseFloat(ri.quantity) * parseFloat(String(item.quantity));
+              const lockedRows = await tx.execute<{
+                id: number;
+                name: string;
+                stock_quantity: string;
+              }>(
+                sql`SELECT id, name, stock_quantity FROM ingredients WHERE id = ${ri.ingredientId} AND is_deleted = FALSE FOR UPDATE`
+              );
+              const ingredient = lockedRows.rows[0];
+              if (!ingredient) continue;
+              const before = parseFloat(ingredient.stock_quantity);
+              const after = Math.max(0, before - totalDeduct);
+              await tx
+                .update(ingredientsTable)
+                .set({ stockQuantity: after.toFixed(4) })
+                .where(eq(ingredientsTable.id, ingredient.id));
+              inventoryEntries.push({
+                ingredientId: ingredient.id,
+                ingredientName: ingredient.name,
+                quantityBefore: before.toFixed(4),
+                quantityAfter: after.toFixed(4),
+                change: (-totalDeduct).toFixed(4),
+                reason: `Order #${updatedOrder.id} delivered`,
+                billId: existingBill.id,
+              });
+            }
           }
-        }
 
-        if (inventoryEntries.length > 0) {
-          await db.insert(inventoryLogsTable).values(inventoryEntries);
+          if (inventoryEntries.length > 0) {
+            await tx.insert(inventoryLogsTable).values(inventoryEntries);
+          }
         }
       }
     }
-  }
+
+    return updatedOrder;
+  });
 
   res.json(order);
 });

@@ -34,7 +34,7 @@ interface CreateOrderResponseType {
   status: string;
   totalAmount: string;
   discountAmount: string;
-  discountType: string;
+  discountType: "pct" | "pkr";
   customerName?: string | null;
   customerPhone?: string | null;
   paymentMethod?: string | null;
