@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "MUFAZ Kitchen",
-    "slug": "mobile-app",
+    "slug": "mufaz-kitchen",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile-app",
+    "scheme": "mufaz-kitchen",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -14,9 +14,12 @@
       "backgroundColor": "#faf9f7"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mufaz.kitchen"
     },
-    "android": {},
+    "android": {
+      "package": "com.mufaz.kitchen"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -24,7 +27,7 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://mufazpos.m3toolskit.shop/"
         }
       ],
       "expo-font",
@@ -33,6 +36,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "mufaz-kitchen"
+      }
     }
   }
 }
