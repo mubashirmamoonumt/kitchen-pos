@@ -12,6 +12,7 @@ import {
   useUpdateMenuItem,
   useDeleteMenuItem,
   useToggleMenuItemAvailability,
+  useGetMe,
   getListCategoriesQueryKey,
   getListMenuItemsQueryKey,
 } from "@workspace/api-client-react";
@@ -20,7 +21,7 @@ import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, TrendingUp } from "lucide-react";
 
 const categorySchema = z.object({
   name: z.string().min(1),
@@ -46,6 +47,9 @@ const itemSchema = z.object({
   price: z.string().min(1),
   categoryId: z.number(),
   isAvailable: z.boolean().default(true),
+  unit: z.string().optional(),
+  internalCost: z.string().optional(),
+  defaultDiscountPct: z.string().optional(),
 });
 type ItemForm = z.infer<typeof itemSchema>;
 
@@ -53,6 +57,8 @@ export default function Menu() {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const me = useGetMe();
+  const isOwner = me.data?.role === "owner";
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [catDialog, setCatDialog] = useState<{ open: boolean; editing?: any }>({ open: false });
   const [itemDialog, setItemDialog] = useState<{ open: boolean; editing?: any }>({ open: false });
@@ -75,7 +81,7 @@ export default function Menu() {
 
   const itemForm = useForm<ItemForm>({
     resolver: zodResolver(itemSchema),
-    defaultValues: { name: "", nameUr: "", price: "", categoryId: 0, isAvailable: true },
+    defaultValues: { name: "", nameUr: "", price: "", categoryId: 0, isAvailable: true, unit: "qty", internalCost: "", defaultDiscountPct: "0" },
   });
 
   const openCatEdit = (cat?: any) => {
@@ -84,12 +90,32 @@ export default function Menu() {
   };
 
   const openItemEdit = (item?: any) => {
-    itemForm.reset(item ? { name: item.name, nameUr: item.nameUr ?? "", description: item.description ?? "", descriptionUr: item.descriptionUr ?? "", price: item.price, categoryId: item.categoryId, isAvailable: item.isAvailable } : { name: "", nameUr: "", price: "", categoryId: activeCategoryId ?? (categories.data?.[0]?.id ?? 0), isAvailable: true });
+    itemForm.reset(item ? {
+      name: item.name,
+      nameUr: item.nameUr ?? "",
+      description: item.description ?? "",
+      descriptionUr: item.descriptionUr ?? "",
+      price: item.price,
+      categoryId: item.categoryId,
+      isAvailable: item.isAvailable,
+      unit: item.unit ?? "qty",
+      internalCost: item.internalCost ?? "",
+      defaultDiscountPct: item.defaultDiscountPct ?? "0",
+    } : {
+      name: "",
+      nameUr: "",
+      price: "",
+      categoryId: activeCategoryId ?? (categories.data?.[0]?.id ?? 0),
+      isAvailable: true,
+      unit: "qty",
+      internalCost: "",
+      defaultDiscountPct: "0",
+    });
     setItemDialog({ open: true, editing: item });
   };
 
   const saveCat = (values: CategoryForm) => {
-    const action = catDialog.editing
+    catDialog.editing
       ? updateCat.mutate({ id: catDialog.editing.id, data: values }, {
           onSuccess: () => { toast({ title: t("Category Updated") }); qc.invalidateQueries({ queryKey: getListCategoriesQueryKey() }); setCatDialog({ open: false }); },
           onError: () => toast({ variant: "destructive", title: t("Error") }),
@@ -101,12 +127,17 @@ export default function Menu() {
   };
 
   const saveItem = (values: ItemForm) => {
-    const action = itemDialog.editing
-      ? updateItem.mutate({ id: itemDialog.editing.id, data: values }, {
+    const payload = {
+      ...values,
+      internalCost: values.internalCost || undefined,
+      defaultDiscountPct: values.defaultDiscountPct || "0",
+    };
+    itemDialog.editing
+      ? updateItem.mutate({ id: itemDialog.editing.id, data: payload }, {
           onSuccess: () => { toast({ title: t("Item Updated") }); qc.invalidateQueries({ queryKey: getListMenuItemsQueryKey() }); setItemDialog({ open: false }); },
           onError: () => toast({ variant: "destructive", title: t("Error") }),
         })
-      : createItem.mutate({ data: values }, {
+      : createItem.mutate({ data: payload }, {
           onSuccess: () => { toast({ title: t("Item Created") }); qc.invalidateQueries({ queryKey: getListMenuItemsQueryKey() }); setItemDialog({ open: false }); },
           onError: () => toast({ variant: "destructive", title: t("Error") }),
         });
@@ -131,6 +162,13 @@ export default function Menu() {
       onSuccess: () => qc.invalidateQueries({ queryKey: getListMenuItemsQueryKey() }),
       onError: () => toast({ variant: "destructive", title: t("Error") }),
     });
+  };
+
+  const getMarginPct = (price: string, cost: string | null | undefined) => {
+    if (!cost || parseFloat(cost) === 0) return null;
+    const p = parseFloat(price);
+    const c = parseFloat(cost);
+    return Math.round(((p - c) / p) * 100);
   };
 
   return (
@@ -186,35 +224,49 @@ export default function Menu() {
             <Card><CardContent className="py-10 text-center text-muted-foreground">{t("No items in this category")}</CardContent></Card>
           ) : (
             <div className="space-y-2">
-              {menuItems.data?.map((item) => (
-                <Card key={item.id} data-testid={`card-menu-item-${item.id}`}>
-                  <CardContent className="py-3 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
+              {menuItems.data?.map((item) => {
+                const margin = isOwner ? getMarginPct(item.price, item.internalCost) : null;
+                return (
+                  <Card key={item.id} data-testid={`card-menu-item-${item.id}`}>
+                    <CardContent className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm">{language === "ur" && item.nameUr ? item.nameUr : item.name}</span>
+                            {!item.isAvailable && <Badge variant="outline" className="text-xs text-muted-foreground">{t("Unavailable")}</Badge>}
+                            <Badge variant="outline" className="text-xs text-muted-foreground">{item.unit}</Badge>
+                            {parseFloat(item.defaultDiscountPct ?? "0") > 0 && (
+                              <Badge variant="secondary" className="text-xs">{item.defaultDiscountPct}% {t("off")}</Badge>
+                            )}
+                            {margin !== null && (
+                              <Badge className={`text-xs flex items-center gap-0.5 ${margin >= 50 ? "bg-green-100 text-green-800 border-green-200" : margin >= 25 ? "bg-yellow-100 text-yellow-800 border-yellow-200" : "bg-red-100 text-red-800 border-red-200"}`} variant="outline">
+                                <TrendingUp className="w-2.5 h-2.5" />
+                                {margin}%
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-primary font-semibold text-sm">PKR {Number(item.price).toLocaleString()}</span>
+                            {isOwner && item.internalCost && <span className="text-xs text-muted-foreground">cost: PKR {Number(item.internalCost).toLocaleString()}</span>}
+                            {item.description && <span className="text-xs text-muted-foreground truncate max-w-40">{item.description}</span>}
+                          </div>
+                        </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{language === "ur" && item.nameUr ? item.nameUr : item.name}</span>
-                          {!item.isAvailable && <Badge variant="outline" className="text-xs text-muted-foreground">{t("Unavailable")}</Badge>}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-primary font-semibold text-sm">PKR {Number(item.price).toLocaleString()}</span>
-                          {item.description && <span className="text-xs text-muted-foreground truncate max-w-48">{item.description}</span>}
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleToggleAvail(item.id)} data-testid={`button-toggle-${item.id}`}>
+                            {item.isAvailable ? <ToggleRight className="w-4 h-4 text-green-600" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openItemEdit(item)} data-testid={`button-edit-item-${item.id}`}>
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(item.id)} data-testid={`button-delete-item-${item.id}`}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleToggleAvail(item.id)} data-testid={`button-toggle-${item.id}`}>
-                          {item.isAvailable ? <ToggleRight className="w-4 h-4 text-green-600" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openItemEdit(item)} data-testid={`button-edit-item-${item.id}`}>
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(item.id)} data-testid={`button-delete-item-${item.id}`}>
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
@@ -246,7 +298,7 @@ export default function Menu() {
 
       {/* Item dialog */}
       <Dialog open={itemDialog.open} onOpenChange={(open) => setItemDialog({ open })}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{itemDialog.editing ? t("Edit Item") : t("New Item")}</DialogTitle></DialogHeader>
           <Form {...itemForm}>
             <form onSubmit={itemForm.handleSubmit(saveItem)} className="space-y-4">
@@ -258,9 +310,25 @@ export default function Menu() {
                   <FormItem><FormLabel>{t("Name")} (UR)</FormLabel><FormControl><Input {...field} dir="rtl" className="font-urdu" /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <FormField control={itemForm.control} name="price" render={({ field }) => (
-                  <FormItem><FormLabel>{t("Price")} (PKR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} data-testid="input-item-price" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>{t("Price")} (PKR)</FormLabel><FormControl><Input type="number" step="0.01" min="0" {...field} data-testid="input-item-price" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={itemForm.control} name="unit" render={({ field }) => (
+                  <FormItem><FormLabel>{t("Unit")}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? "qty"}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="qty">{t("qty")}</SelectItem>
+                        <SelectItem value="plate">{t("plate")}</SelectItem>
+                        <SelectItem value="bowl">{t("bowl")}</SelectItem>
+                        <SelectItem value="glass">{t("glass")}</SelectItem>
+                        <SelectItem value="kg">{t("kg")}</SelectItem>
+                        <SelectItem value="g">{t("g")}</SelectItem>
+                        <SelectItem value="portion">{t("portion")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  <FormMessage /></FormItem>
                 )} />
                 <FormField control={itemForm.control} name="categoryId" render={({ field }) => (
                   <FormItem><FormLabel>{t("Category")}</FormLabel>
@@ -273,6 +341,24 @@ export default function Menu() {
                   <FormMessage /></FormItem>
                 )} />
               </div>
+              {isOwner && (
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={itemForm.control} name="internalCost" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("Internal Cost")} (PKR)</FormLabel>
+                      <FormControl><Input type="number" step="0.01" min="0" placeholder="0.00" {...field} data-testid="input-item-cost" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={itemForm.control} name="defaultDiscountPct" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("Default Discount")} (%)</FormLabel>
+                      <FormControl><Input type="number" step="0.1" min="0" max="100" placeholder="0" {...field} data-testid="input-item-discount" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              )}
               <FormField control={itemForm.control} name="description" render={({ field }) => (
                 <FormItem><FormLabel>{t("Description")}</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>
               )} />

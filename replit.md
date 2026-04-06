@@ -68,4 +68,33 @@ Expo React Native app for kitchen staff on mobile.
 - **CreateOrderItemInput** requires: `menuItemId`, `itemName`, `itemPrice`, `quantity`
 - **Order** type fields: `id`, `customerId`, `customerName`, `status`, `totalAmount`, `paymentMethod`, `createdAt`
 
+## Menu & Order Enhancements (Task #6)
+
+### Menu Items (new fields)
+- `unit` (text, default "qty"): unit of measure per item — displayed on item card and in cart
+- `internalCost` (numeric, nullable): owner-only cost for margin tracking
+- `defaultDiscountPct` (numeric, default 0): auto-applied per-item discount at checkout
+- Margin badge shown to owners: color-coded (green ≥50%, yellow ≥25%, red <25%)
+
+### Orders (new fields)
+- `discountAmount` (numeric, default 0): order-level discount amount
+- `discountType` (text, default "pkr"): "pkr" or "pct"
+- `order_items.unit` (text, default "qty"): unit per item line
+- `order_items.discountAmount` (numeric, default 0): per-item discount applied
+
+### New Order Flow
+- Category badges filter the menu grid
+- Cart rows show unit label and per-item default discount (auto-applied)
+- Checkout discount panel: PKR/% toggle + amount input with live preview
+- After placing order, a receipt preview dialog pops up with Close + Print buttons
+
+### Orders Page
+- Status advance button replaced with a full status dropdown allowing any non-terminal transition
+- Terminal orders (delivered/cancelled) show a static colored badge
+
+### Bills Auto-Generation
+- `POST /api/orders` now auto-creates a bill immediately and returns `{ ...order, items, bill }`
+- `POST /api/bills` no longer requires order status to be "delivered"
+- Inventory deduction happens when status transitions to "delivered"
+
 ## All Tasks Complete

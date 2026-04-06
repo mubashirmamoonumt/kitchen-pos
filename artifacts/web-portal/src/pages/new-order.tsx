@@ -8,8 +8,10 @@ import {
   useListMenuItems,
   useListCustomers,
   useCreateOrder,
+  useListSettings,
   getListOrdersQueryKey,
 } from "@workspace/api-client-react";
+import type { SettingsMap } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
@@ -21,8 +23,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Minus, Plus, ArrowLeft, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Minus, Plus, ArrowLeft, Trash2, Tag, Receipt } from "lucide-react";
 import { Link } from "wouter";
+import { ReceiptContent } from "./bills";
 
 const schema = z.object({
   orderType: z.enum(["dine-in", "takeaway", "delivery"]),
@@ -39,6 +43,8 @@ interface CartItem {
   nameUr: string;
   price: string;
   quantity: number;
+  unit: string;
+  defaultDiscountPct: string;
 }
 
 export default function NewOrder() {
@@ -48,24 +54,38 @@ export default function NewOrder() {
   const queryClient = useQueryClient();
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [discountValue, setDiscountValue] = useState<string>("");
+  const [discountType, setDiscountType] = useState<"pkr" | "pct">("pkr");
+  const [receiptBill, setReceiptBill] = useState<any>(null);
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   const categories = useListCategories();
   const menuItems = useListMenuItems({ params: categoryId ? { categoryId, isAvailable: true } : { isAvailable: true } });
   const customers = useListCustomers();
   const createOrder = useCreateOrder();
+  const settingsQuery = useListSettings();
+  const settings: SettingsMap = settingsQuery.data ?? {};
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { orderType: "dine-in", paymentMethod: "cash", notes: "" },
   });
 
-  const addToCart = (item: { id: number; name: string; nameUr: string; price: string }) => {
+  const addToCart = (item: { id: number; name: string; nameUr: string; price: string; unit?: string | null; defaultDiscountPct?: string | null }) => {
     setCart((prev) => {
       const existing = prev.find((c) => c.menuItemId === item.id);
       if (existing) {
         return prev.map((c) => c.menuItemId === item.id ? { ...c, quantity: c.quantity + 1 } : c);
       }
-      return [...prev, { menuItemId: item.id, name: item.name, nameUr: item.nameUr, price: item.price, quantity: 1 }];
+      return [...prev, {
+        menuItemId: item.id,
+        name: item.name,
+        nameUr: item.nameUr ?? "",
+        price: item.price,
+        quantity: 1,
+        unit: item.unit ?? "qty",
+        defaultDiscountPct: item.defaultDiscountPct ?? "0",
+      }];
     });
   };
 
@@ -76,7 +96,17 @@ export default function NewOrder() {
     });
   };
 
-  const total = cart.reduce((sum, c) => sum + parseFloat(c.price) * c.quantity, 0);
+  const subtotal = cart.reduce((sum, c) => sum + parseFloat(c.price) * c.quantity, 0);
+
+  let orderDiscountAmt = 0;
+  if (discountValue && parseFloat(discountValue) > 0) {
+    if (discountType === "pct") {
+      orderDiscountAmt = (subtotal * parseFloat(discountValue)) / 100;
+    } else {
+      orderDiscountAmt = parseFloat(discountValue);
+    }
+  }
+  const total = Math.max(0, subtotal - orderDiscountAmt);
 
   const onSubmit = (values: FormValues) => {
     if (cart.length === 0) {
@@ -87,20 +117,41 @@ export default function NewOrder() {
       {
         data: {
           ...values,
-          items: cart.map((c) => ({ menuItemId: c.menuItemId, quantity: c.quantity, itemName: c.name, itemPrice: c.price })),
+          discountAmount: orderDiscountAmt > 0 ? orderDiscountAmt.toFixed(2) : undefined,
+          discountType: orderDiscountAmt > 0 ? discountType : undefined,
+          items: cart.map((c) => ({
+            menuItemId: c.menuItemId,
+            quantity: c.quantity,
+            itemName: c.name,
+            itemPrice: c.price,
+            unit: c.unit,
+            discountAmount: parseFloat(c.defaultDiscountPct) > 0
+              ? ((parseFloat(c.price) * c.quantity * parseFloat(c.defaultDiscountPct)) / 100).toFixed(2)
+              : undefined,
+          })),
         },
       },
       {
-        onSuccess: () => {
-          toast({ title: t("Order Created Successfully") });
+        onSuccess: (data: any) => {
           queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-          setLocation("/orders");
+          if (data?.bill) {
+            setReceiptBill(data);
+            setReceiptOpen(true);
+          } else {
+            toast({ title: t("Order Created Successfully") });
+            setLocation("/orders");
+          }
         },
         onError: (err: any) => {
           toast({ variant: "destructive", title: t("Error"), description: err?.data?.error || t("Failed to create order") });
         },
       }
     );
+  };
+
+  const handleReceiptClose = () => {
+    setReceiptOpen(false);
+    setLocation("/orders");
   };
 
   return (
@@ -156,8 +207,14 @@ export default function NewOrder() {
                       data-testid={`button-menu-item-${item.id}`}
                     >
                       <p className="font-medium text-sm">{language === "ur" && item.nameUr ? item.nameUr : item.name}</p>
-                      <p className="text-primary font-semibold text-sm mt-1">PKR {Number(item.price).toLocaleString()}</p>
-                      {inCart && <Badge variant="secondary" className="text-xs mt-1">×{inCart.quantity}</Badge>}
+                      <div className="flex items-center gap-1 mt-1">
+                        <p className="text-primary font-semibold text-sm">PKR {Number(item.price).toLocaleString()}</p>
+                        <span className="text-xs text-muted-foreground">/ {item.unit}</span>
+                      </div>
+                      {parseFloat(item.defaultDiscountPct ?? "0") > 0 && (
+                        <Badge variant="secondary" className="text-xs mt-1">{item.defaultDiscountPct}% {t("off")}</Badge>
+                      )}
+                      {inCart && <Badge variant="outline" className="text-xs mt-1 ml-1">×{inCart.quantity}</Badge>}
                     </button>
                   );
                 })}
@@ -178,28 +235,86 @@ export default function NewOrder() {
                 <p className="text-muted-foreground text-sm text-center py-4">{t("No items added")}</p>
               ) : (
                 <>
-                  {cart.map((item) => (
-                    <div key={item.menuItemId} className="flex items-center gap-2" data-testid={`cart-item-${item.menuItemId}`}>
-                      <span className="text-sm flex-1 truncate">{language === "ur" && item.nameUr ? item.nameUr : item.name}</span>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQty(item.menuItemId, -1)}>
-                          <Minus className="w-3 h-3" />
-                        </Button>
-                        <span className="text-sm w-4 text-center">{item.quantity}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQty(item.menuItemId, 1)}>
-                          <Plus className="w-3 h-3" />
-                        </Button>
+                  {cart.map((item) => {
+                    const itemSubtotal = parseFloat(item.price) * item.quantity;
+                    const itemDiscount = parseFloat(item.defaultDiscountPct) > 0
+                      ? (itemSubtotal * parseFloat(item.defaultDiscountPct)) / 100
+                      : 0;
+                    return (
+                      <div key={item.menuItemId} className="space-y-0.5" data-testid={`cart-item-${item.menuItemId}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm flex-1 truncate">
+                            {language === "ur" && item.nameUr ? item.nameUr : item.name}
+                            <span className="text-muted-foreground text-xs ml-1">/ {item.unit}</span>
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQty(item.menuItemId, -1)}>
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <span className="text-sm w-4 text-center">{item.quantity}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQty(item.menuItemId, 1)}>
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          <span className="text-sm font-medium w-20 text-right">
+                            PKR {(itemSubtotal - itemDiscount).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setCart(c => c.filter(x => x.menuItemId !== item.menuItemId))}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        {itemDiscount > 0 && (
+                          <div className="flex justify-end">
+                            <span className="text-xs text-green-600">-{item.defaultDiscountPct}% = PKR {itemDiscount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-sm font-medium w-20 text-right">PKR {(parseFloat(item.price) * item.quantity).toLocaleString()}</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setCart(c => c.filter(x => x.menuItemId !== item.menuItemId))}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <Separator />
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>{t("Subtotal")}</span>
+                    <span>PKR {subtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                  </div>
+
+                  {/* Discount panel */}
+                  <div className="border rounded-md p-2 space-y-2 bg-muted/30">
+                    <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                      <Tag className="w-3 h-3" />
+                      {t("Checkout Discount")}
+                    </div>
+                    <div className="flex gap-1">
+                      <Select value={discountType} onValueChange={(v: "pkr" | "pct") => setDiscountType(v)}>
+                        <SelectTrigger className="w-20 h-7 text-xs" data-testid="select-discount-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pkr">PKR</SelectItem>
+                          <SelectItem value="pct">%</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0"
+                        value={discountValue}
+                        onChange={(e) => setDiscountValue(e.target.value)}
+                        className="h-7 text-xs flex-1"
+                        data-testid="input-discount-value"
+                      />
+                    </div>
+                    {orderDiscountAmt > 0 && (
+                      <div className="flex justify-between text-xs text-green-600">
+                        <span>{t("Discount applied")}</span>
+                        <span>-PKR {orderDiscountAmt.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex justify-between font-semibold">
                     <span>{t("Total")}</span>
-                    <span>PKR {total.toLocaleString()}</span>
+                    <span>PKR {total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                   </div>
                 </>
               )}
@@ -302,6 +417,60 @@ export default function NewOrder() {
           </Card>
         </div>
       </div>
+
+      {/* Receipt preview dialog */}
+      <Dialog open={receiptOpen} onOpenChange={(open) => { if (!open) handleReceiptClose(); }}>
+        <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="w-4 h-4" />
+              {t("Order Created")} — {t("Invoice")}
+            </DialogTitle>
+          </DialogHeader>
+          {receiptBill && (
+            <div className="space-y-4">
+              <ReceiptContent
+                b={{
+                  id: receiptBill.bill?.id,
+                  orderId: receiptBill.id,
+                  billNumber: receiptBill.bill?.billNumber,
+                  subtotal: receiptBill.bill?.subtotal,
+                  discount: receiptBill.bill?.discount,
+                  tax: receiptBill.bill?.tax,
+                  totalAmount: receiptBill.bill?.totalAmount,
+                  paymentMethod: receiptBill.paymentMethod ?? "cash",
+                  createdAt: receiptBill.bill?.createdAt ?? new Date().toISOString(),
+                  items: receiptBill.items?.map((i: any) => ({
+                    id: i.id,
+                    itemName: i.itemName,
+                    quantity: i.quantity,
+                    unitPrice: i.itemPrice,
+                    subtotal: i.subtotal,
+                  })),
+                  order: {
+                    customerName: receiptBill.customerName,
+                    paymentMethod: receiptBill.paymentMethod,
+                  },
+                }}
+                settings={settings}
+              />
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={handleReceiptClose} data-testid="button-close-receipt">
+                  {t("Close")}
+                </Button>
+                <Button className="flex-1" onClick={() => {
+                  if (receiptBill?.bill?.id) {
+                    window.open(`/bills/${receiptBill.bill.id}/print`, "_blank");
+                  }
+                  handleReceiptClose();
+                }} data-testid="button-print-receipt">
+                  {t("Print")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

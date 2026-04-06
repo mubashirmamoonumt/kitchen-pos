@@ -1,6 +1,18 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, desc, ne, count, sql } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, customersTable, ingredientsTable } from "@workspace/db";
+import {
+  db,
+  ordersTable,
+  orderItemsTable,
+  customersTable,
+  ingredientsTable,
+  billsTable,
+  billItemsTable,
+  inventoryLogsTable,
+  recipesTable,
+  recipeIngredientsTable,
+  appSettingsTable,
+} from "@workspace/db";
 import {
   ListOrdersQueryParams,
   CreateOrderBody,
@@ -12,14 +24,13 @@ import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending: ["confirmed", "cancelled"],
-  confirmed: ["preparing", "cancelled"],
-  preparing: ["ready", "cancelled"],
-  ready: ["delivered", "cancelled"],
-  delivered: [],
-  cancelled: [],
-};
+async function getSettingValue(key: string, fallback = "0"): Promise<string> {
+  const [row] = await db
+    .select({ value: appSettingsTable.value })
+    .from(appSettingsTable)
+    .where(and(eq(appSettingsTable.key, key), eq(appSettingsTable.isDeleted, false)));
+  return row?.value ?? fallback;
+}
 
 router.get("/orders/dashboard-summary", requireAuth, async (_req, res): Promise<void> => {
   const today = new Date();
@@ -128,7 +139,16 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const { items, customerId, customerName, customerPhone, notes, paymentMethod } = parsed.data;
+  const {
+    items,
+    customerId,
+    customerName,
+    customerPhone,
+    notes,
+    paymentMethod,
+    discountAmount: orderDiscountAmount,
+    discountType,
+  } = parsed.data;
 
   let resolvedName = customerName;
   let resolvedPhone = customerPhone;
@@ -144,42 +164,122 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
-  const totalAmount = items
-    .reduce((sum, item) => sum + parseFloat(item.itemPrice) * item.quantity, 0)
-    .toFixed(2);
+  const subtotal = items.reduce(
+    (sum, item) => sum + parseFloat(item.itemPrice) * item.quantity,
+    0
+  );
 
-  const result = await db.transaction(async (tx) => {
-    const [order] = await tx
-      .insert(ordersTable)
-      .values({
-        customerId: customerId ?? null,
-        customerName: resolvedName ?? null,
-        customerPhone: resolvedPhone ?? null,
-        status: "pending",
-        notes: notes ?? null,
-        totalAmount,
-        paymentMethod: paymentMethod ?? null,
-      })
-      .returning();
+  let orderDiscount = 0;
+  if (orderDiscountAmount) {
+    if (discountType === "pct") {
+      orderDiscount = (subtotal * parseFloat(orderDiscountAmount)) / 100;
+    } else {
+      orderDiscount = parseFloat(orderDiscountAmount);
+    }
+  }
 
-    const orderItems = await tx
-      .insert(orderItemsTable)
-      .values(
-        items.map((item) => ({
-          orderId: order.id,
-          menuItemId: item.menuItemId,
-          itemName: item.itemName,
-          itemPrice: item.itemPrice,
-          quantity: item.quantity,
-          subtotal: (parseFloat(item.itemPrice) * item.quantity).toFixed(2),
-        }))
-      )
-      .returning();
+  const totalAmount = Math.max(0, subtotal - orderDiscount).toFixed(2);
 
-    return { ...order, items: orderItems };
-  });
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [order] = await tx
+        .insert(ordersTable)
+        .values({
+          customerId: customerId ?? null,
+          customerName: resolvedName ?? null,
+          customerPhone: resolvedPhone ?? null,
+          status: "pending",
+          notes: notes ?? null,
+          totalAmount,
+          discountAmount: orderDiscount.toFixed(2),
+          discountType: discountType ?? "pkr",
+          paymentMethod: paymentMethod ?? null,
+        })
+        .returning();
 
-  res.status(201).json(result);
+      const orderItems = await tx
+        .insert(orderItemsTable)
+        .values(
+          items.map((item) => {
+            const itemSubtotal = parseFloat(item.itemPrice) * item.quantity;
+            const itemDiscount = parseFloat(item.discountAmount ?? "0");
+            return {
+              orderId: order.id,
+              menuItemId: item.menuItemId,
+              itemName: item.itemName,
+              itemPrice: item.itemPrice,
+              quantity: item.quantity,
+              unit: item.unit ?? "qty",
+              discountAmount: itemDiscount.toFixed(2),
+              subtotal: Math.max(0, itemSubtotal - itemDiscount).toFixed(2),
+            };
+          })
+        )
+        .returning();
+
+      const taxPercent = parseFloat(await getSettingValue("bill_tax_percent", "0"));
+      const settingDiscountPercent = parseFloat(
+        await getSettingValue("bill_discount_percent", "0")
+      );
+
+      const subtotalAmt = orderItems.reduce(
+        (sum, oi) => sum + parseFloat(oi.subtotal ?? "0"),
+        0
+      );
+      const settingDiscount = (subtotalAmt * settingDiscountPercent) / 100;
+      const effectiveDiscount = orderDiscount > 0 ? orderDiscount : settingDiscount;
+      const taxAmt = ((subtotalAmt - effectiveDiscount) * taxPercent) / 100;
+      const billTotal = Math.max(0, subtotalAmt - effectiveDiscount + taxAmt);
+
+      const [existingBill] = await tx
+        .select({ id: billsTable.id })
+        .from(billsTable)
+        .where(and(eq(billsTable.orderId, order.id), eq(billsTable.isDeleted, false)));
+
+      let billData = null;
+      if (!existingBill) {
+        const [bill] = await tx
+          .insert(billsTable)
+          .values({
+            orderId: order.id,
+            subtotal: subtotalAmt.toFixed(2),
+            discount: effectiveDiscount.toFixed(2),
+            tax: taxAmt.toFixed(2),
+            totalAmount: billTotal.toFixed(2),
+            paymentMethod: paymentMethod ?? "cash",
+            notes: notes ?? null,
+          })
+          .returning();
+
+        const year = new Date(bill.createdAt).getFullYear();
+        const billNumber = `INV-${year}-${String(bill.id).padStart(4, "0")}`;
+        await tx
+          .update(billsTable)
+          .set({ billNumber })
+          .where(eq(billsTable.id, bill.id));
+
+        await tx.insert(billItemsTable).values(
+          orderItems.map((oi) => ({
+            billId: bill.id,
+            itemName: oi.itemName,
+            quantity: oi.quantity,
+            unitPrice: oi.itemPrice,
+            subtotal: oi.subtotal,
+          }))
+        );
+
+        billData = { ...bill, billNumber };
+      }
+
+      return { ...order, items: orderItems, bill: billData };
+    });
+
+    res.status(201).json(result);
+  } catch (err: unknown) {
+    const e = err as Error & { status?: number };
+    const status = e.status ?? 500;
+    res.status(status).json({ error: e.message ?? "Internal server error" });
+  }
 });
 
 router.get("/orders/:id", requireAuth, async (req, res): Promise<void> => {
@@ -229,10 +329,10 @@ router.patch("/orders/:id/status", requireAuth, async (req, res): Promise<void> 
     return;
   }
 
-  const allowedNext = STATUS_TRANSITIONS[existing.status] ?? [];
-  if (!allowedNext.includes(parsed.data.status)) {
+  const terminal = ["delivered", "cancelled"];
+  if (terminal.includes(existing.status)) {
     res.status(422).json({
-      error: `Cannot transition from '${existing.status}' to '${parsed.data.status}'. Allowed transitions: ${allowedNext.join(", ") || "none"}`,
+      error: `Order is already ${existing.status} and cannot be changed.`,
     });
     return;
   }
@@ -247,6 +347,75 @@ router.patch("/orders/:id/status", requireAuth, async (req, res): Promise<void> 
     .set(updateData)
     .where(eq(ordersTable.id, params.data.id))
     .returning();
+
+  if (parsed.data.status === "delivered") {
+    const orderItems = await db
+      .select()
+      .from(orderItemsTable)
+      .where(and(eq(orderItemsTable.orderId, order.id), eq(orderItemsTable.isDeleted, false)));
+
+    const inventoryEntries: Array<{
+      ingredientId: number;
+      ingredientName: string;
+      quantityBefore: string;
+      quantityAfter: string;
+      change: string;
+      reason: string;
+      billId: number;
+    }> = [];
+
+    const [existingBill] = await db
+      .select()
+      .from(billsTable)
+      .where(and(eq(billsTable.orderId, order.id), eq(billsTable.isDeleted, false)));
+
+    if (existingBill) {
+      for (const item of orderItems) {
+        if (!item.menuItemId) continue;
+        const [recipe] = await db
+          .select()
+          .from(recipesTable)
+          .where(and(eq(recipesTable.menuItemId, item.menuItemId), eq(recipesTable.isDeleted, false)));
+        if (!recipe) continue;
+        const recipeIngredients = await db
+          .select()
+          .from(recipeIngredientsTable)
+          .where(and(eq(recipeIngredientsTable.recipeId, recipe.id), eq(recipeIngredientsTable.isDeleted, false)));
+
+        for (const ri of recipeIngredients) {
+          const totalDeduct = parseFloat(ri.quantity) * item.quantity;
+          const lockedRows = await db.execute<{
+            id: number;
+            name: string;
+            stock_quantity: string;
+          }>(
+            sql`SELECT id, name, stock_quantity FROM ingredients WHERE id = ${ri.ingredientId} AND is_deleted = FALSE FOR UPDATE`
+          );
+          const ingredient = lockedRows.rows[0];
+          if (!ingredient) continue;
+          const before = parseFloat(ingredient.stock_quantity);
+          const after = Math.max(0, before - totalDeduct);
+          await db
+            .update(ingredientsTable)
+            .set({ stockQuantity: after.toFixed(4) })
+            .where(eq(ingredientsTable.id, ingredient.id));
+          inventoryEntries.push({
+            ingredientId: ingredient.id,
+            ingredientName: ingredient.name,
+            quantityBefore: before.toFixed(4),
+            quantityAfter: after.toFixed(4),
+            change: (-totalDeduct).toFixed(4),
+            reason: `Order #${order.id} delivered`,
+            billId: existingBill.id,
+          });
+        }
+      }
+
+      if (inventoryEntries.length > 0) {
+        await db.insert(inventoryLogsTable).values(inventoryEntries);
+      }
+    }
+  }
 
   res.json(order);
 });

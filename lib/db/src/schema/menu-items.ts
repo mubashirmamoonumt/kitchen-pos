@@ -16,6 +16,9 @@ export const menuItemsTable = pgTable("menu_items", {
   isAvailable: boolean("is_available").notNull().default(true),
   isDeleted: boolean("is_deleted").notNull().default(false),
   imageUrl: text("image_url"),
+  unit: text("unit").notNull().default("qty"),
+  internalCost: numeric("internal_cost", { precision: 10, scale: 2 }),
+  defaultDiscountPct: numeric("default_discount_pct", { precision: 5, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

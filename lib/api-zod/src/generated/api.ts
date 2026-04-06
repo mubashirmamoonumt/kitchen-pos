@@ -152,6 +152,9 @@ export const ListMenuItemsResponseItem = zod.object({
   price: zod.string(),
   isAvailable: zod.boolean(),
   imageUrl: zod.string().nullish(),
+  unit: zod.string(),
+  internalCost: zod.string().nullish(),
+  defaultDiscountPct: zod.string(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -169,6 +172,9 @@ export const CreateMenuItemBody = zod.object({
   price: zod.string(),
   isAvailable: zod.boolean().optional(),
   imageUrl: zod.string().optional(),
+  unit: zod.string().optional(),
+  internalCost: zod.string().optional(),
+  defaultDiscountPct: zod.string().optional(),
 });
 
 /**
@@ -188,6 +194,9 @@ export const GetMenuItemResponse = zod.object({
   price: zod.string(),
   isAvailable: zod.boolean(),
   imageUrl: zod.string().nullish(),
+  unit: zod.string(),
+  internalCost: zod.string().nullish(),
+  defaultDiscountPct: zod.string(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -208,6 +217,9 @@ export const UpdateMenuItemBody = zod.object({
   price: zod.string().optional(),
   isAvailable: zod.boolean().optional(),
   imageUrl: zod.string().optional(),
+  unit: zod.string().optional(),
+  internalCost: zod.string().optional(),
+  defaultDiscountPct: zod.string().optional(),
 });
 
 export const UpdateMenuItemResponse = zod.object({
@@ -220,6 +232,9 @@ export const UpdateMenuItemResponse = zod.object({
   price: zod.string(),
   isAvailable: zod.boolean(),
   imageUrl: zod.string().nullish(),
+  unit: zod.string(),
+  internalCost: zod.string().nullish(),
+  defaultDiscountPct: zod.string(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -248,6 +263,9 @@ export const ToggleMenuItemAvailabilityResponse = zod.object({
   price: zod.string(),
   isAvailable: zod.boolean(),
   imageUrl: zod.string().nullish(),
+  unit: zod.string(),
+  internalCost: zod.string().nullish(),
+  defaultDiscountPct: zod.string(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -377,12 +395,16 @@ export const CreateOrderBody = zod.object({
   customerPhone: zod.string().optional(),
   notes: zod.string().optional(),
   paymentMethod: zod.string().optional(),
+  discountAmount: zod.string().optional(),
+  discountType: zod.string().optional(),
   items: zod.array(
     zod.object({
       menuItemId: zod.number(),
       itemName: zod.string(),
       itemPrice: zod.string(),
       quantity: zod.number(),
+      unit: zod.string().optional(),
+      discountAmount: zod.string().optional(),
     }),
   ),
 });

@@ -11,7 +11,7 @@ import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Eye, ChevronRight } from "lucide-react";
+import { Plus, Search, Eye } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -40,12 +40,7 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-red-100 text-red-800 border-red-200",
 };
 
-const NEXT_STATUS: Record<string, string> = {
-  pending: "confirmed",
-  confirmed: "preparing",
-  preparing: "ready",
-  ready: "delivered",
-};
+const ALL_STATUSES = ["pending", "confirmed", "preparing", "ready", "delivered", "cancelled"];
 
 function OrderDetail({ orderId }: { orderId: number }) {
   const { t } = useLanguage();
@@ -61,24 +56,30 @@ function OrderDetail({ orderId }: { orderId: number }) {
       <div className="grid grid-cols-2 gap-2 text-sm">
         <div><span className="text-muted-foreground">{t("Customer")}:</span> <span className="font-medium">{o.customerName || "Walk-in"}</span></div>
         <div><span className="text-muted-foreground">{t("Status")}:</span> <span className="font-medium capitalize">{t(o.status.charAt(0).toUpperCase() + o.status.slice(1))}</span></div>
-        <div><span className="text-muted-foreground">{t("Order Type")}:</span> <span className="font-medium capitalize">{o.orderType}</span></div>
+        <div><span className="text-muted-foreground">{t("Order Type")}:</span> <span className="font-medium capitalize">{(o as any).orderType}</span></div>
         <div><span className="text-muted-foreground">{t("Payment Method")}:</span> <span className="font-medium capitalize">{o.paymentMethod}</span></div>
       </div>
-      {o.notes && (
+      {(o as any).notes && (
         <div className="text-sm">
-          <span className="text-muted-foreground">{t("Notes")}:</span> <span>{o.notes}</span>
+          <span className="text-muted-foreground">{t("Notes")}:</span> <span>{(o as any).notes}</span>
         </div>
       )}
       <Separator />
       <div className="space-y-2">
         {(o as any).items?.map((item: any) => (
           <div key={item.id} className="flex justify-between text-sm" data-testid={`row-order-item-${item.id}`}>
-            <span>{item.menuItemName} × {item.quantity}</span>
-            <span className="font-medium">PKR {Number(item.unitPrice * item.quantity).toLocaleString()}</span>
+            <span>{item.itemName} × {item.quantity}</span>
+            <span className="font-medium">PKR {Number(parseFloat(item.itemPrice) * item.quantity).toLocaleString()}</span>
           </div>
         ))}
       </div>
       <Separator />
+      {parseFloat((o as any).discountAmount ?? "0") > 0 && (
+        <div className="flex justify-between text-sm text-green-600">
+          <span>{t("Discount")}</span>
+          <span>-PKR {Number((o as any).discountAmount).toLocaleString()}</span>
+        </div>
+      )}
       <div className="flex justify-between font-semibold">
         <span>{t("Total")}</span>
         <span>PKR {Number(o.totalAmount).toLocaleString()}</span>
@@ -87,10 +88,56 @@ function OrderDetail({ orderId }: { orderId: number }) {
   );
 }
 
-export default function Orders() {
+function StatusDropdown({ orderId, currentStatus }: { orderId: number; currentStatus: string }) {
   const { t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const updateStatus = useUpdateOrderStatus();
+
+  const isTerminal = currentStatus === "delivered" || currentStatus === "cancelled";
+
+  if (isTerminal) {
+    return (
+      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium capitalize ${STATUS_COLORS[currentStatus] ?? ""}`}>
+        {t(currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1))}
+      </span>
+    );
+  }
+
+  const handleChange = (newStatus: string) => {
+    if (newStatus === currentStatus) return;
+    updateStatus.mutate(
+      { id: orderId, data: { status: newStatus } },
+      {
+        onSuccess: () => {
+          toast({ title: t("Status Updated"), description: `${t("Order")} #${orderId} → ${t(newStatus.charAt(0).toUpperCase() + newStatus.slice(1))}` });
+          queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+        },
+        onError: (err: any) => {
+          toast({ variant: "destructive", title: t("Error"), description: err?.data?.error ?? t("Failed to update status") });
+        },
+      }
+    );
+  };
+
+  return (
+    <Select value={currentStatus} onValueChange={handleChange} disabled={updateStatus.isPending}>
+      <SelectTrigger className={`h-7 text-xs w-32 border font-medium ${STATUS_COLORS[currentStatus] ?? ""}`} data-testid={`select-status-${orderId}`}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {ALL_STATUSES.map((s) => (
+          <SelectItem key={s} value={s} className="text-xs">
+            {t(s.charAt(0).toUpperCase() + s.slice(1))}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export default function Orders() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
@@ -100,8 +147,6 @@ export default function Orders() {
     params: statusFilter !== "all" ? { status: statusFilter } : undefined,
   });
 
-  const updateStatus = useUpdateOrderStatus();
-
   const filtered = (orders.data ?? []).filter((o) => {
     if (!search) return true;
     return (
@@ -110,39 +155,7 @@ export default function Orders() {
     );
   });
 
-  const handleAdvanceStatus = (orderId: number, currentStatus: string) => {
-    const next = NEXT_STATUS[currentStatus];
-    if (!next) return;
-    updateStatus.mutate(
-      { id: orderId, data: { status: next } },
-      {
-        onSuccess: () => {
-          toast({ title: t("Status Updated"), description: `${t("Order")} #${orderId} → ${t(next.charAt(0).toUpperCase() + next.slice(1))}` });
-          queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-        },
-        onError: () => {
-          toast({ variant: "destructive", title: t("Error"), description: t("Failed to update status") });
-        },
-      }
-    );
-  };
-
-  const handleCancel = (orderId: number) => {
-    updateStatus.mutate(
-      { id: orderId, data: { status: "cancelled" } },
-      {
-        onSuccess: () => {
-          toast({ title: t("Order Cancelled") });
-          queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-        },
-        onError: () => {
-          toast({ variant: "destructive", title: t("Error"), description: t("Failed to cancel order") });
-        },
-      }
-    );
-  };
-
-  const STATUSES = ["all", "pending", "confirmed", "preparing", "ready", "delivered", "cancelled"];
+  const STATUSES = ["all", ...ALL_STATUSES];
 
   return (
     <div className="space-y-6" data-testid="page-orders">
@@ -200,10 +213,7 @@ export default function Orders() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold text-sm">#{order.id}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium capitalize ${STATUS_COLORS[order.status] ?? ""}`}>
-                        {t(order.status.charAt(0).toUpperCase() + order.status.slice(1))}
-                      </span>
-                      <span className="text-xs text-muted-foreground capitalize">{order.orderType}</span>
+                      <span className="text-xs text-muted-foreground capitalize">{(order as any).orderType}</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{order.customerName || "Walk-in"}</span>
@@ -214,6 +224,7 @@ export default function Orders() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <StatusDropdown orderId={order.id} currentStatus={order.status} />
                     <Dialog open={detailOpen && selectedOrderId === order.id} onOpenChange={(open) => { setDetailOpen(open); if (open) setSelectedOrderId(order.id); }}>
                       <DialogTrigger asChild>
                         <Button variant="ghost" size="icon" data-testid={`button-view-order-${order.id}`}>
@@ -227,31 +238,6 @@ export default function Orders() {
                         {selectedOrderId === order.id && <OrderDetail orderId={order.id} />}
                       </DialogContent>
                     </Dialog>
-                    {NEXT_STATUS[order.status] && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAdvanceStatus(order.id, order.status)}
-                        disabled={updateStatus.isPending}
-                        data-testid={`button-advance-status-${order.id}`}
-                        className="text-xs"
-                      >
-                        <ChevronRight className="w-3 h-3 mr-1" />
-                        {t(NEXT_STATUS[order.status].charAt(0).toUpperCase() + NEXT_STATUS[order.status].slice(1))}
-                      </Button>
-                    )}
-                    {(order.status === "pending" || order.status === "confirmed") && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive text-xs"
-                        onClick={() => handleCancel(order.id)}
-                        disabled={updateStatus.isPending}
-                        data-testid={`button-cancel-order-${order.id}`}
-                      >
-                        {t("Cancel")}
-                      </Button>
-                    )}
                   </div>
                 </div>
               </CardContent>
