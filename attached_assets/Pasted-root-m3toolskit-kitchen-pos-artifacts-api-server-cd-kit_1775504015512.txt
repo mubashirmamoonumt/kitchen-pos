@@ -1,0 +1,35 @@
+root@m3toolskit:~/kitchen-pos/artifacts/api-server# cd ~/kitchen-pos
+
+NODE_TLS_REJECT_UNAUTHORIZED=0 \
+DATABASE_URL=postgresql://postgres:Mufaz2024kitchen@db.cqowbsiivxnckpkupedn.supabase.co:5432/postgres?sslmode=require \
+  pnpm --filter @workspace/db run push-force
+
+> @workspace/db@0.0.0 push-force /root/kitchen-pos/lib/db
+> drizzle-kit push --force --config ./drizzle.config.ts && tsx ./src/migrations.ts
+
+Reading config file '/root/kitchen-pos/lib/db/drizzle.config.ts'
+Using 'pg' driver for database querying
+[⣷] Pulling schema from database...
+(node:2837104) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+[⡿] Pulling schema from database...
+(node:2837104) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and H[✓] Pulling schema from database...
+[✓] Changes applied
+(node:2837144) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2837144) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+[db] Trigger trg_customer_stats_on_delivery applied.
+root@m3toolskit:~/kitchen-pos#
