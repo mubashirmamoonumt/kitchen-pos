@@ -17,6 +17,7 @@ import Inventory from "@/pages/inventory";
 import Recipes from "@/pages/recipes";
 import Scheduled from "@/pages/scheduled";
 import Bills from "@/pages/bills";
+import BillsPrint from "@/pages/bills-print";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 
@@ -80,6 +81,7 @@ function AppRouter() {
           <Scheduled />
         </Layout>
       </Route>
+      <Route path="/bills/:id/print" component={BillsPrint} />
       <Route path="/bills">
         <Layout>
           <Bills />

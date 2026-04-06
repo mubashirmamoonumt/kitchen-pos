@@ -9,7 +9,7 @@ export const billsTable = pgTable("bills", {
     .notNull()
     .unique()
     .references(() => ordersTable.id),
-  billNumber: text("bill_number"),
+  billNumber: text("bill_number").unique(),
   subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull().default("0"),
   discount: numeric("discount", { precision: 12, scale: 2 }).notNull().default("0"),
   tax: numeric("tax", { precision: 12, scale: 2 }).notNull().default("0"),

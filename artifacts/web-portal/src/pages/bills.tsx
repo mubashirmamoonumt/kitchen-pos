@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useLocation } from "wouter";
 import {
   useListBills,
   useGetBill,
@@ -6,6 +7,13 @@ import {
   useListOrders,
   useListSettings,
   getListBillsQueryKey,
+} from "@workspace/api-client-react";
+import type {
+  BillDetail,
+  BillItem,
+  BillSummary,
+  GenerateBillMutationError,
+  SettingsMap,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/i18n";
@@ -19,12 +27,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Search, Eye, Plus, Receipt, Download, FileImage } from "lucide-react";
 
-function ReceiptContent({
+interface ExtendedBillDetail extends BillDetail {
+  billNumber?: string | null;
+  subtotal?: string | null;
+  discount?: string | null;
+  tax?: string | null;
+}
+
+interface ExtendedBillSummary extends BillSummary {
+  billNumber?: string | null;
+  customerName?: string | null;
+}
+
+export function ReceiptContent({
   b,
   settings,
 }: {
-  b: any;
-  settings: Record<string, string>;
+  b: ExtendedBillDetail;
+  settings: SettingsMap;
 }) {
   const { t } = useLanguage();
   const kitchenName = settings.kitchen_name || "MUFAZ Kitchen";
@@ -55,14 +75,13 @@ function ReceiptContent({
       </div>
       <Separator className="border-dashed" />
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-        <div><span className="text-muted-foreground">{t("Customer")}: </span><span className="font-medium">{b.order?.customerName || b.customerName || "Walk-in"}</span></div>
-        <div><span className="text-muted-foreground">{t("Order Type")}: </span><span className="font-medium capitalize">{b.order?.orderType || b.orderType || "-"}</span></div>
+        <div><span className="text-muted-foreground">{t("Customer")}: </span><span className="font-medium">{b.order?.customerName || "Walk-in"}</span></div>
         <div><span className="text-muted-foreground">{t("Payment")}: </span><span className="font-medium capitalize">{b.paymentMethod}</span></div>
         <div><span className="text-muted-foreground">{t("Order")} #: </span><span className="font-medium">{b.orderId}</span></div>
       </div>
       <Separator className="border-dashed" />
       <div className="space-y-1">
-        {b.items?.map((item: any) => (
+        {b.items?.map((item: BillItem) => (
           <div key={item.id} className="flex justify-between text-xs" data-testid={`row-bill-item-${item.id}`}>
             <span>{item.itemName} × {item.quantity}</span>
             <span>PKR {Number(parseFloat(item.unitPrice) * item.quantity).toLocaleString()}</span>
@@ -108,11 +127,13 @@ function ReceiptContent({
 function BillDetail({ billId }: { billId: number }) {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const receiptRef = useRef<HTMLDivElement>(null);
   const bill = useGetBill(billId, { query: { enabled: !!billId, queryKey: ["getBill", billId] } });
   const settingsQuery = useListSettings();
 
-  const settings = (settingsQuery.data ?? {}) as Record<string, string>;
+  const settings: SettingsMap = settingsQuery.data ?? {};
+  const b = bill.data as ExtendedBillDetail | undefined;
 
   const handleDownloadImage = useCallback(async () => {
     if (!receiptRef.current) return;
@@ -133,87 +154,11 @@ function BillDetail({ billId }: { billId: number }) {
   }, [billId, toast, t]);
 
   const handleDownloadPdf = useCallback(() => {
-    const kitchenName = settings.kitchen_name || "MUFAZ Kitchen";
-    const kitchenPhone = settings.kitchen_phone || "";
-    const kitchenAddress = settings.kitchen_address || "";
-    const website = settings.bill_website || "";
-    const thankYou = settings.bill_thank_you_message || "Thank you for your order!";
-    const cta = settings.bill_cta_text || "";
-    const b = bill.data as any;
-    if (!b) return;
-
-    const subtotal = parseFloat(b.subtotal ?? b.totalAmount ?? "0");
-    const discount = parseFloat(b.discount ?? "0");
-    const tax = parseFloat(b.tax ?? "0");
-    const total = parseFloat(b.totalAmount ?? "0");
-    const billNumber = b.billNumber ?? `#${b.id}`;
-
-    const itemRows = (b.items ?? [])
-      .map((item: any) =>
-        `<tr><td>${item.itemName} × ${item.quantity}</td><td style="text-align:right">PKR ${(parseFloat(item.unitPrice) * item.quantity).toLocaleString()}</td></tr>`
-      )
-      .join("");
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8"/>
-<title>Receipt ${billNumber}</title>
-<style>
-  body { font-family: monospace; font-size: 12px; max-width: 320px; margin: 0 auto; padding: 16px; }
-  h2 { text-align: center; margin: 0; font-size: 15px; }
-  .center { text-align: center; color: #666; margin: 2px 0; }
-  .divider { border-top: 1px dashed #999; margin: 8px 0; }
-  table { width: 100%; border-collapse: collapse; }
-  td { padding: 2px 0; }
-  .total-row td { font-weight: bold; font-size: 13px; border-top: 1px solid #000; padding-top: 4px; }
-  .footer { text-align: center; color: #555; margin-top: 8px; }
-  @media print { body { margin: 0; } }
-</style>
-</head>
-<body>
-<h2>${kitchenName}</h2>
-${kitchenPhone ? `<p class="center">${kitchenPhone}</p>` : ""}
-${kitchenAddress ? `<p class="center">${kitchenAddress}</p>` : ""}
-${website ? `<p class="center">${website}</p>` : ""}
-<div class="divider"></div>
-<p class="center"><strong>Invoice ${billNumber}</strong></p>
-<p class="center">${new Date(b.createdAt).toLocaleString()}</p>
-<div class="divider"></div>
-<table>
-  <tr><td>Customer</td><td>${b.order?.customerName || "Walk-in"}</td></tr>
-  <tr><td>Order Type</td><td style="text-transform:capitalize">${b.order?.orderType || "-"}</td></tr>
-  <tr><td>Payment</td><td style="text-transform:capitalize">${b.paymentMethod}</td></tr>
-  <tr><td>Order #</td><td>${b.orderId}</td></tr>
-</table>
-<div class="divider"></div>
-<table>${itemRows}</table>
-<div class="divider"></div>
-<table>
-  <tr><td>Subtotal</td><td style="text-align:right">PKR ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td></tr>
-  ${discount > 0 ? `<tr><td style="color:green">Discount</td><td style="text-align:right;color:green">-PKR ${discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td></tr>` : ""}
-  ${tax > 0 ? `<tr><td>Tax</td><td style="text-align:right">PKR ${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td></tr>` : ""}
-  <tr class="total-row"><td>TOTAL</td><td style="text-align:right">PKR ${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td></tr>
-</table>
-${thankYou || cta ? `<div class="divider"></div><div class="footer">${thankYou ? `<p><strong>${thankYou}</strong></p>` : ""}${cta ? `<p>${cta}</p>` : ""}</div>` : ""}
-</body>
-</html>`;
-
-    const win = window.open("", "_blank");
-    if (!win) {
-      toast({ variant: "destructive", title: t("Error"), description: "Popup blocked. Please allow popups." });
-      return;
-    }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 400);
-  }, [bill.data, settings, t, toast]);
+    navigate(`/bills/${billId}/print`);
+  }, [billId, navigate]);
 
   if (bill.isLoading || settingsQuery.isLoading) return <Skeleton className="h-64" />;
-  if (!bill.data) return null;
-
-  const b = bill.data as any;
+  if (!b) return null;
 
   return (
     <div className="space-y-4">
@@ -247,11 +192,11 @@ export default function Bills() {
   const deliveredOrders = useListOrders({ status: "delivered" });
   const createBill = useGenerateBill();
 
-  const filtered = (bills.data ?? []).filter((b) => {
+  const filtered = (bills.data as ExtendedBillSummary[] ?? []).filter((b) => {
     if (!search) return true;
     return (
-      ((b as any).billNumber ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      ((b as any).customerName ?? "").toLowerCase().includes(search.toLowerCase())
+      (b.billNumber ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      (b.customerName ?? "").toLowerCase().includes(search.toLowerCase())
     );
   });
 
@@ -273,8 +218,8 @@ export default function Bills() {
           qc.invalidateQueries({ queryKey: getListBillsQueryKey() });
           setGenerateForOrderId("");
         },
-        onError: (err: any) => {
-          toast({ variant: "destructive", title: t("Error"), description: err?.data?.error || t("Failed to generate bill") });
+        onError: (err: GenerateBillMutationError) => {
+          toast({ variant: "destructive", title: t("Error"), description: err?.data?.error ?? t("Failed to generate bill") });
         },
       }
     );
@@ -344,7 +289,7 @@ export default function Bills() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {filtered.map((bill: any) => (
+          {filtered.map((bill) => (
             <Card key={bill.id} data-testid={`card-bill-${bill.id}`}>
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-3">
