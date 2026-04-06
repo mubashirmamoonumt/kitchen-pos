@@ -84,6 +84,7 @@ export default function Bills() {
   const [search, setSearch] = useState("");
   const [selectedBillId, setSelectedBillId] = useState<number | null>(null);
   const [generateForOrderId, setGenerateForOrderId] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
 
   const bills = useListBills();
   const deliveredOrders = useListOrders({ params: { status: "delivered" } });
@@ -97,10 +98,18 @@ export default function Bills() {
     );
   });
 
+  const handleOrderSelect = (orderId: string) => {
+    setGenerateForOrderId(orderId);
+    const order = deliveredOrders.data?.find((o) => o.id.toString() === orderId);
+    if (order?.paymentMethod) {
+      setPaymentMethod(order.paymentMethod);
+    }
+  };
+
   const handleGenerate = () => {
     if (!generateForOrderId) return;
     createBill.mutate(
-      { data: { orderId: parseInt(generateForOrderId) } },
+      { data: { orderId: parseInt(generateForOrderId), paymentMethod } },
       {
         onSuccess: () => {
           toast({ title: t("Bill Generated") });
@@ -126,9 +135,9 @@ export default function Bills() {
           <CardTitle className="text-base">{t("Generate Bill for Delivered Order")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-3">
-            <Select onValueChange={setGenerateForOrderId} value={generateForOrderId}>
-              <SelectTrigger className="flex-1" data-testid="select-order-for-bill">
+          <div className="flex gap-3 flex-wrap">
+            <Select onValueChange={handleOrderSelect} value={generateForOrderId}>
+              <SelectTrigger className="flex-1 min-w-[180px]" data-testid="select-order-for-bill">
                 <SelectValue placeholder={t("Select a delivered order...")} />
               </SelectTrigger>
               <SelectContent>
@@ -137,6 +146,16 @@ export default function Bills() {
                     #{o.id} — {o.customerName || "Walk-in"} · PKR {Number(o.totalAmount).toLocaleString()}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select onValueChange={setPaymentMethod} value={paymentMethod}>
+              <SelectTrigger className="w-36" data-testid="select-payment-method-bill">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">{t("Cash")}</SelectItem>
+                <SelectItem value="jazzcash">{t("JazzCash")}</SelectItem>
+                <SelectItem value="easypaisa">{t("EasyPaisa")}</SelectItem>
               </SelectContent>
             </Select>
             <Button onClick={handleGenerate} disabled={!generateForOrderId || createBill.isPending} data-testid="button-generate-bill">

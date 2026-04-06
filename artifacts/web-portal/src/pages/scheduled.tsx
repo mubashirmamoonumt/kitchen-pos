@@ -10,6 +10,10 @@ import {
   useListMenuItems,
   useListCustomers,
   getListScheduledOrdersQueryKey,
+  type CreateScheduledOrderBody,
+  type UpdateScheduledOrderBody,
+  type ScheduledOrderItem,
+  type ScheduledOrder,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/i18n";
@@ -23,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Trash2, CalendarClock } from "lucide-react";
+import { Plus, Pencil, Trash2, CalendarClock, Minus } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -32,44 +36,105 @@ const STATUS_COLORS: Record<string, string> = {
   completed: "bg-green-100 text-green-800",
 };
 
+interface CartItem {
+  menuItemId: number;
+  itemName: string;
+  quantity: number;
+  unitPrice: string;
+}
+
 const schema = z.object({
-  scheduledAt: z.string().min(1),
+  scheduledDate: z.string().min(1, "Date required"),
+  scheduledTime: z.string().min(1, "Time required"),
   customerId: z.number().optional(),
-  orderType: z.enum(["dine-in", "takeaway", "delivery"]),
-  paymentMethod: z.enum(["cash", "jazzcash", "easypaisa"]),
   notes: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
 export default function Scheduled() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [dialog, setDialog] = useState<{ open: boolean; editing?: any }>({ open: false });
+  const [dialog, setDialog] = useState<{ open: boolean; editing?: ScheduledOrder }>({ open: false });
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedMenuItemId, setSelectedMenuItemId] = useState<string>("");
 
   const scheduledOrders = useListScheduledOrders();
   const customers = useListCustomers();
+  const menuItems = useListMenuItems({ isAvailable: true });
   const createOrder = useCreateScheduledOrder();
   const updateOrder = useUpdateScheduledOrder();
   const deleteOrder = useDeleteScheduledOrder();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { scheduledAt: "", orderType: "dine-in", paymentMethod: "cash", notes: "" },
+    defaultValues: { scheduledDate: "", scheduledTime: "", notes: "" },
   });
 
-  const openEdit = (order?: any) => {
-    form.reset(order ? {
-      scheduledAt: order.scheduledAt?.slice(0, 16) ?? "",
-      customerId: order.customerId,
-      orderType: order.orderType,
-      paymentMethod: order.paymentMethod,
-      notes: order.notes ?? "",
-    } : { scheduledAt: "", orderType: "dine-in", paymentMethod: "cash", notes: "" });
+  const openEdit = (order?: ScheduledOrder) => {
+    setCart([]);
+    setSelectedMenuItemId("");
+    if (order) {
+      form.reset({
+        scheduledDate: order.scheduledDate ?? "",
+        scheduledTime: order.scheduledTime ?? "",
+        customerId: order.customerId ?? undefined,
+        notes: order.notes ?? "",
+      });
+      if (order.items?.length) {
+        setCart(order.items.map((i) => ({
+          menuItemId: i.menuItemId,
+          itemName: i.itemName,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+        })));
+      }
+    } else {
+      form.reset({ scheduledDate: "", scheduledTime: "", notes: "" });
+    }
     setDialog({ open: true, editing: order });
   };
 
+  const addToCart = () => {
+    if (!selectedMenuItemId) return;
+    const id = parseInt(selectedMenuItemId);
+    const item = menuItems.data?.find((m) => m.id === id);
+    if (!item) return;
+    setCart((prev) => {
+      const existing = prev.find((c) => c.menuItemId === id);
+      if (existing) {
+        return prev.map((c) => c.menuItemId === id ? { ...c, quantity: c.quantity + 1 } : c);
+      }
+      return [...prev, {
+        menuItemId: id,
+        itemName: (language === "ur" && item.nameUr) ? item.nameUr : item.name,
+        quantity: 1,
+        unitPrice: String(item.price),
+      }];
+    });
+    setSelectedMenuItemId("");
+  };
+
+  const updateCartQty = (menuItemId: number, delta: number) => {
+    setCart((prev) => {
+      const updated = prev.map((c) => c.menuItemId === menuItemId ? { ...c, quantity: Math.max(0, c.quantity + delta) } : c);
+      return updated.filter((c) => c.quantity > 0);
+    });
+  };
+
+  const buildItems = (): ScheduledOrderItem[] =>
+    cart.map((c) => ({
+      menuItemId: c.menuItemId,
+      itemName: c.itemName,
+      quantity: c.quantity,
+      unitPrice: c.unitPrice,
+    }));
+
   const onSave = (values: FormValues) => {
+    if (cart.length === 0 && !dialog.editing) {
+      toast({ variant: "destructive", title: t("Error"), description: t("Add at least one item") });
+      return;
+    }
     const opts = {
       onSuccess: () => {
         toast({ title: dialog.editing ? t("Schedule Updated") : t("Order Scheduled") });
@@ -79,9 +144,23 @@ export default function Scheduled() {
       onError: () => toast({ variant: "destructive", title: t("Error") }),
     };
     if (dialog.editing) {
-      updateOrder.mutate({ id: dialog.editing.id, data: values }, opts);
+      const data: UpdateScheduledOrderBody = {
+        scheduledDate: values.scheduledDate,
+        scheduledTime: values.scheduledTime,
+        customerId: values.customerId,
+        notes: values.notes,
+        items: buildItems(),
+      };
+      updateOrder.mutate({ id: dialog.editing.id, data }, opts);
     } else {
-      createOrder.mutate({ data: values }, opts);
+      const data: CreateScheduledOrderBody = {
+        scheduledDate: values.scheduledDate,
+        scheduledTime: values.scheduledTime,
+        customerId: values.customerId,
+        notes: values.notes,
+        items: buildItems(),
+      };
+      createOrder.mutate({ data }, opts);
     }
   };
 
@@ -112,7 +191,7 @@ export default function Scheduled() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {scheduledOrders.data?.map((order: any) => (
+          {scheduledOrders.data?.map((order) => (
             <Card key={order.id} data-testid={`card-scheduled-${order.id}`}>
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-3">
@@ -127,10 +206,8 @@ export default function Scheduled() {
                       <span>{order.customerName || "Walk-in"}</span>
                       <span>·</span>
                       <span className="font-medium text-foreground">
-                        {new Date(order.scheduledAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        {order.scheduledDate} {order.scheduledTime}
                       </span>
-                      <span>·</span>
-                      <span capitalize>{order.orderType}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -149,13 +226,27 @@ export default function Scheduled() {
       )}
 
       <Dialog open={dialog.open} onOpenChange={(open) => setDialog({ open })}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{dialog.editing ? t("Edit Schedule") : t("Schedule Order")}</DialogTitle></DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
-              <FormField control={form.control} name="scheduledAt" render={({ field }) => (
-                <FormItem><FormLabel>{t("Scheduled Time")}</FormLabel><FormControl><Input type="datetime-local" {...field} data-testid="input-scheduled-at" /></FormControl><FormMessage /></FormItem>
-              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="scheduledDate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("Date")}</FormLabel>
+                    <FormControl><Input type="date" {...field} data-testid="input-scheduled-date" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="scheduledTime" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("Time")}</FormLabel>
+                    <FormControl><Input type="time" {...field} data-testid="input-scheduled-time" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
               <FormField control={form.control} name="customerId" render={({ field }) => (
                 <FormItem><FormLabel>{t("Customer")} ({t("Optional")})</FormLabel>
                   <Select onValueChange={(v) => field.onChange(v ? parseInt(v) : undefined)} value={field.value?.toString()}>
@@ -166,34 +257,50 @@ export default function Scheduled() {
                   </Select>
                 </FormItem>
               )} />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="orderType" render={({ field }) => (
-                  <FormItem><FormLabel>{t("Order Type")}</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="dine-in">{t("Dine-in")}</SelectItem>
-                        <SelectItem value="takeaway">{t("Takeaway")}</SelectItem>
-                        <SelectItem value="delivery">{t("Delivery")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="paymentMethod" render={({ field }) => (
-                  <FormItem><FormLabel>{t("Payment")}</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="cash">{t("Cash")}</SelectItem>
-                        <SelectItem value="jazzcash">{t("JazzCash")}</SelectItem>
-                        <SelectItem value="easypaisa">{t("EasyPaisa")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+
+              <div className="space-y-2">
+                <FormLabel>{t("Items")}</FormLabel>
+                <div className="flex gap-2">
+                  <Select onValueChange={setSelectedMenuItemId} value={selectedMenuItemId}>
+                    <SelectTrigger className="flex-1" data-testid="select-scheduled-menu-item">
+                      <SelectValue placeholder={t("Select item...")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {menuItems.data?.map((m) => (
+                        <SelectItem key={m.id} value={m.id.toString()}>
+                          {(language === "ur" && m.nameUr) ? m.nameUr : m.name} — PKR {Number(m.price).toLocaleString()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" onClick={addToCart} disabled={!selectedMenuItemId} data-testid="button-add-scheduled-item">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                {cart.length > 0 && (
+                  <div className="space-y-1 mt-2">
+                    {cart.map((c) => (
+                      <div key={c.menuItemId} className="flex items-center justify-between text-sm border rounded px-3 py-1.5">
+                        <span className="flex-1">{c.itemName}</span>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateCartQty(c.menuItemId, -1)}>
+                            <Minus className="w-3 h-3" />
+                          </Button>
+                          <span className="w-5 text-center">{c.quantity}</span>
+                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateCartQty(c.menuItemId, 1)}>
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        <span className="text-muted-foreground ml-3">PKR {(Number(c.unitPrice) * c.quantity).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {cart.length === 0 && !dialog.editing && (
+                  <p className="text-xs text-muted-foreground">{t("Add at least one item")}</p>
+                )}
               </div>
+
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem><FormLabel>{t("Notes")}</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl></FormItem>
               )} />
@@ -208,3 +315,4 @@ export default function Scheduled() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,6 +9,7 @@ import {
   useGetRecipeByMenuItem,
   useUpsertRecipe,
   getListRecipesQueryKey,
+  getListMenuItemsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/i18n";
@@ -112,9 +113,14 @@ function RecipeForm({ menuItemId, onClose }: { menuItemId: number; onClose: () =
 
 export default function Recipes() {
   const { t, language } = useLanguage();
+  const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; menuItemId?: number; menuItemName?: string }>({ open: false });
   const menuItems = useListMenuItems();
   const recipes = useListRecipes();
+
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: getListMenuItemsQueryKey() });
+  }, []);
 
   const recipesMap = new Set(recipes.data?.map((r: any) => r.menuItemId) ?? []);
 

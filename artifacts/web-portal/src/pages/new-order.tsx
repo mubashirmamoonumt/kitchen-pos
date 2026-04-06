@@ -87,7 +87,7 @@ export default function NewOrder() {
       {
         data: {
           ...values,
-          items: cart.map((c) => ({ menuItemId: c.menuItemId, quantity: c.quantity })),
+          items: cart.map((c) => ({ menuItemId: c.menuItemId, quantity: c.quantity, itemName: c.name, itemPrice: c.price })),
         },
       },
       {
