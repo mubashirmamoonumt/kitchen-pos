@@ -11,6 +11,13 @@ import {
   useUpdateSettings,
   getListSettingsQueryKey,
 } from "@workspace/api-client-react";
+import type {
+  UserProfile,
+  SettingsMap,
+  UpdateUserMutationError,
+  CreateUserMutationError,
+  UpdateSettingsMutationError,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
@@ -68,7 +75,7 @@ export default function Settings() {
   const settings = useListSettings();
   const updateSettings = useUpdateSettings();
 
-  const isOwner = (me.data as any)?.role === "owner";
+  const isOwner = me.data?.role === "owner";
 
   const pinForm = useForm<PinForm>({
     resolver: zodResolver(pinSchema),
@@ -96,7 +103,7 @@ export default function Settings() {
 
   useEffect(() => {
     if (settings.data) {
-      const s = settings.data as Record<string, string>;
+      const s: SettingsMap = settings.data;
       billForm.reset({
         kitchen_name: s.kitchen_name ?? "MUFAZ Kitchen",
         kitchen_phone: s.kitchen_phone ?? "",
@@ -128,8 +135,8 @@ export default function Settings() {
           toast({ title: t("Password Updated") });
           pinForm.reset();
         },
-        onError: (err: any) => {
-          toast({ variant: "destructive", title: t("Error"), description: err?.data?.error || t("Failed to update password") });
+        onError: (err: UpdateUserMutationError) => {
+          toast({ variant: "destructive", title: t("Error"), description: err.message || t("Failed to update password") });
         },
       }
     );
@@ -145,8 +152,8 @@ export default function Settings() {
           setUserDialog(false);
           userForm.reset();
         },
-        onError: (err: any) => {
-          toast({ variant: "destructive", title: t("Error"), description: err?.data?.error || t("Failed to create user") });
+        onError: (err: CreateUserMutationError) => {
+          toast({ variant: "destructive", title: t("Error"), description: err.message || t("Failed to create user") });
         },
       }
     );
@@ -154,14 +161,14 @@ export default function Settings() {
 
   const onSaveBillSettings = (values: BillSettingsForm) => {
     updateSettings.mutate(
-      { data: values as any },
+      { data: values as SettingsMap },
       {
         onSuccess: () => {
           toast({ title: t("Bill Settings Saved") });
           qc.invalidateQueries({ queryKey: getListSettingsQueryKey() });
         },
-        onError: (err: any) => {
-          toast({ variant: "destructive", title: t("Error"), description: err?.data?.error || t("Failed to save settings") });
+        onError: (err: UpdateSettingsMutationError) => {
+          toast({ variant: "destructive", title: t("Error"), description: err.message || t("Failed to save settings") });
         },
       }
     );
@@ -379,7 +386,7 @@ export default function Settings() {
               <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
             ) : (
               <div className="space-y-2">
-                {users.data?.map((u: any) => (
+                {users.data?.map((u: UserProfile) => (
                   <Card key={u.id} data-testid={`card-user-${u.id}`}>
                     <CardContent className="py-3 px-4">
                       <div className="flex items-center gap-3">
