@@ -159,6 +159,8 @@ export interface Order {
   discountAmount: string;
   discountType: "pct" | "pkr";
   /** @nullable */
+  discountRuleName?: string | null;
+  /** @nullable */
   paymentMethod?: string | null;
   createdAt: string;
   updatedAt: string;

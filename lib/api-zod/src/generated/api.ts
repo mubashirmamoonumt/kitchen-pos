@@ -399,6 +399,7 @@ export const CreateOrderBody = zod.object({
   paymentMethod: zod.string().optional(),
   discountAmount: zod.string().optional(),
   discountType: zod.enum(["pct", "pkr"]).optional(),
+  discountRuleName: zod.string().optional(),
   items: zod.array(
     zod.object({
       menuItemId: zod.number(),

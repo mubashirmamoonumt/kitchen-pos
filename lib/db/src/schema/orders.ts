@@ -13,6 +13,7 @@ export const ordersTable = pgTable("orders", {
   totalAmount: numeric("total_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   discountAmount: numeric("discount_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   discountType: text("discount_type").notNull().default("pkr"),
+  discountRuleName: text("discount_rule_name"),
   paymentMethod: text("payment_method"),
   isDeleted: boolean("is_deleted").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -148,6 +148,7 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
     paymentMethod,
     discountAmount: orderDiscountAmount,
     discountType,
+    discountRuleName,
   } = parsed.data;
 
   let resolvedName = customerName;
@@ -197,6 +198,7 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
           totalAmount,
           discountAmount: orderDiscount.toFixed(2),
           discountType: discountType ?? "pkr",
+          discountRuleName: discountRuleName ?? null,
           paymentMethod: paymentMethod ?? null,
         })
         .returning();

@@ -130,6 +130,7 @@ export default function NewOrder() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discountValue, setDiscountValue] = useState<string>("");
   const [discountType, setDiscountType] = useState<"pkr" | "pct">("pkr");
+  const [discountRuleName, setDiscountRuleName] = useState<string | undefined>(undefined);
   const [receiptBill, setReceiptBill] = useState<CreateOrderResponseType | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
@@ -219,6 +220,7 @@ export default function NewOrder() {
           ...values,
           discountAmount: orderDiscountAmt > 0 ? orderDiscountAmt.toFixed(2) : undefined,
           discountType: orderDiscountAmt > 0 ? discountType : undefined,
+          discountRuleName: orderDiscountAmt > 0 ? discountRuleName : undefined,
           items: cart.map((c) => {
             const gross = parseFloat(c.price) * c.quantity;
             const discVal = parseFloat(c.itemDiscountValue || "0");
@@ -443,6 +445,7 @@ export default function NewOrder() {
                               onClick={() => {
                                 setDiscountType(rule.discountType === "pct" ? "pct" : "pkr");
                                 setDiscountValue(rule.amount);
+                                setDiscountRuleName(rule.name);
                               }}
                               className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-green-500/40 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-950/30 dark:text-green-400 dark:border-green-500/30 dark:hover:bg-green-900/40 transition-colors"
                               data-testid={`chip-discount-rule-${rule.id}`}
@@ -455,7 +458,7 @@ export default function NewOrder() {
                       );
                     })()}
                     <div className="flex gap-1">
-                      <Select value={discountType} onValueChange={(v: "pkr" | "pct") => setDiscountType(v)}>
+                      <Select value={discountType} onValueChange={(v: "pkr" | "pct") => { setDiscountType(v); setDiscountRuleName(undefined); }}>
                         <SelectTrigger className="w-20 h-7 text-xs" data-testid="select-discount-type">
                           <SelectValue />
                         </SelectTrigger>
@@ -470,7 +473,7 @@ export default function NewOrder() {
                         step="0.01"
                         placeholder="0"
                         value={discountValue}
-                        onChange={(e) => setDiscountValue(e.target.value)}
+                        onChange={(e) => { setDiscountValue(e.target.value); setDiscountRuleName(undefined); }}
                         className="h-7 text-xs flex-1"
                         data-testid="input-discount-value"
                       />

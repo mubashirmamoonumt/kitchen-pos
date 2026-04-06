@@ -111,7 +111,7 @@ export function ReceiptContent({
         </div>
         {discount > 0 && (
           <div className="flex justify-between text-green-600">
-            <span>{t("Discount")}</span>
+            <span>{b.order?.discountRuleName ? b.order.discountRuleName : t("Discount")}</span>
             <span>-PKR {discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
         )}
