@@ -39,7 +39,7 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-function RecipeForm({ menuItemId, menuItemName, onClose }: { menuItemId: number; menuItemName: string; onClose: () => void }) {
+function RecipeForm({ menuItemId, onClose }: { menuItemId: number; onClose: () => void }) {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -415,7 +415,6 @@ export default function Recipes() {
           {dialog.mode === "form" && (
             <RecipeForm
               menuItemId={dialog.menuItemId}
-              menuItemName={dialog.menuItemName}
               onClose={closeDialog}
             />
           )}

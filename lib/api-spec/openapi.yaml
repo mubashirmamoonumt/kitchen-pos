@@ -2046,7 +2046,7 @@ components:
       type: object
       properties:
         instructions:
-          type: string
+          type: ["string", "null"]
         ingredients:
           type: array
           items:
