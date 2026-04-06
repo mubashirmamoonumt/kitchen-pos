@@ -311,7 +311,9 @@ export interface RecipeIngredientDetail {
   recipeId: number;
   ingredientId: number;
   ingredientName: string;
+  ingredientNameUr?: string;
   unit: string;
+  recipeUnit: string;
   quantity: string;
 }
 
@@ -319,6 +321,8 @@ export interface RecipeDetail {
   id: number;
   menuItemId: number;
   menuItemName: string;
+  menuItemNameUr?: string;
+  instructions?: string | null;
   ingredients: RecipeIngredientDetail[];
   createdAt: string;
   updatedAt: string;
@@ -327,9 +331,11 @@ export interface RecipeDetail {
 export interface RecipeIngredientInput {
   ingredientId: number;
   quantity: string;
+  unit?: string;
 }
 
 export interface UpsertRecipeBody {
+  instructions?: string;
   ingredients: RecipeIngredientInput[];
 }
 

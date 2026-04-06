@@ -1979,7 +1979,11 @@ components:
           type: integer
         ingredientName:
           type: string
+        ingredientNameUr:
+          type: string
         unit:
+          type: string
+        recipeUnit:
           type: string
         quantity:
           type: string
@@ -1989,6 +1993,7 @@ components:
         - ingredientId
         - ingredientName
         - unit
+        - recipeUnit
         - quantity
 
     RecipeDetail:
@@ -2000,6 +2005,10 @@ components:
           type: integer
         menuItemName:
           type: string
+        menuItemNameUr:
+          type: string
+        instructions:
+          type: ["string", "null"]
         ingredients:
           type: array
           items:
@@ -2025,6 +2034,8 @@ components:
           type: integer
         quantity:
           type: string
+        unit:
+          type: string
       required:
         - ingredientId
         - quantity
@@ -2032,6 +2043,8 @@ components:
     UpsertRecipeBody:
       type: object
       properties:
+        instructions:
+          type: string
         ingredients:
           type: array
           items:

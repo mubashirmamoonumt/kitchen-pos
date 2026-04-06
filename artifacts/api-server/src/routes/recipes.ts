@@ -13,6 +13,7 @@ const router: IRouter = Router();
 async function buildRecipeDetail(recipe: {
   id: number;
   menuItemId: number;
+  instructions: string | null;
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +41,7 @@ async function buildRecipeDetail(recipe: {
         ingredientName: ing?.name ?? "",
         ingredientNameUr: ing?.nameUr ?? "",
         unit: ing?.unit ?? "",
+        recipeUnit: ri.unit ?? "g",
         quantity: ri.quantity,
       };
     })
@@ -50,6 +52,7 @@ async function buildRecipeDetail(recipe: {
     menuItemId: recipe.menuItemId,
     menuItemName: menuItem?.name ?? "",
     menuItemNameUr: menuItem?.nameUr ?? "",
+    instructions: recipe.instructions ?? null,
     ingredients,
     createdAt: recipe.createdAt,
     updatedAt: recipe.updatedAt,
@@ -107,7 +110,7 @@ router.put("/recipes/menu-item/:menuItemId", requireAuth, async (req, res): Prom
     if (existing) {
       await tx
         .update(recipesTable)
-        .set({ isDeleted: false })
+        .set({ isDeleted: false, instructions: parsed.data.instructions ?? existing.instructions })
         .where(eq(recipesTable.id, existing.id));
       recipeId = existing.id;
 
@@ -118,7 +121,7 @@ router.put("/recipes/menu-item/:menuItemId", requireAuth, async (req, res): Prom
     } else {
       const [newRecipe] = await tx
         .insert(recipesTable)
-        .values({ menuItemId: params.data.menuItemId })
+        .values({ menuItemId: params.data.menuItemId, instructions: parsed.data.instructions ?? null })
         .returning();
       recipeId = newRecipe.id;
     }
@@ -129,6 +132,7 @@ router.put("/recipes/menu-item/:menuItemId", requireAuth, async (req, res): Prom
           recipeId,
           ingredientId: ri.ingredientId,
           quantity: ri.quantity,
+          unit: ri.unit ?? "g",
         }))
       );
     }

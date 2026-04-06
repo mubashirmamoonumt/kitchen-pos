@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, boolean, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, boolean, timestamp, numeric, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { menuItemsTable } from "./menu-items";
@@ -10,6 +10,7 @@ export const recipesTable = pgTable("recipes", {
     .notNull()
     .unique()
     .references(() => menuItemsTable.id),
+  instructions: text("instructions"),
   isDeleted: boolean("is_deleted").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -27,6 +28,7 @@ export const recipeIngredientsTable = pgTable("recipe_ingredients", {
     .notNull()
     .references(() => ingredientsTable.id),
   quantity: numeric("quantity", { precision: 12, scale: 3 }).notNull(),
+  unit: text("unit").notNull().default("g"),
   isDeleted: boolean("is_deleted").notNull().default(false),
 });
 
