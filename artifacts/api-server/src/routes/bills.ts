@@ -83,6 +83,13 @@ router.post("/bills", requireAuth, requireOwner, async (req, res): Promise<void>
         throw Object.assign(new Error("Order not found"), { status: 404 });
       }
 
+      if (order.status !== "delivered") {
+        throw Object.assign(
+          new Error("Bill can only be generated for delivered orders"),
+          { status: 400 }
+        );
+      }
+
       const orderItems = await tx
         .select()
         .from(orderItemsTable)
